@@ -89,7 +89,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🛡️ VERİ KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
+# 🛡️ VERİ KORUMA PANELİ (SOL YAN MENÜ)
 # ==============================================================================
 with st.sidebar:
     st.markdown("## 🛡️ Mayra Park Veri Koruma")
@@ -116,7 +116,7 @@ with st.sidebar:
             key="btn_yedek_indir"
         )
     except Exception as e:
-        st.warning("Yedekleme motoru aktifleşiyor...")
+        st.warning("Yedekleme motoru veri bekliyor...")
 
     st.markdown("---")
     
@@ -140,13 +140,11 @@ with st.sidebar:
                 st.error(f"Yükleme başarısız oldu: {hata}")
 
 # ==============================================================================
-# ANA UYGULAMA PANEL BAŞLIĞI
+# ANA PANEL BAŞLIĞI VE SÜTUN DAĞILIMI
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# Ekran kaymasını önlemek için Üst Sekme Yapısına Geçiyoruz
-sekme_islem, sekme_raporlar = st.columns([1, 1])
-
+# Ekranı net bir şekilde ikiye bölüyoruz
 sol_panel, sag_panel = st.columns(2)
 
 # ==============================================================================
@@ -203,3 +201,6 @@ with sol_panel:
                     conn.commit()
                     st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
                     conn.close()
+                    st.rerun()
+                conn.close()
+            else:
