@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ (RENK VE YAZI AYARLARI)
+# 🎛️ GENEL KONTROL PANELİ
 # ==============================================================================
 PENCERE_ARKA_PLAN_RENK = "#314666"  
 KART_ARKA_PLAN_RENK     = "#315366"  
@@ -116,7 +116,7 @@ with st.sidebar:
             key="btn_yedek_indir"
         )
     except Exception as e:
-        pass
+        st.caption("Veritabanı başlatılıyor...")
 
     st.markdown("---")
     
@@ -140,12 +140,10 @@ with st.sidebar:
                 st.error(f"Yükleme başarısız oldu: {hata}")
 
 # ==============================================================================
-# ANA PANEL BAŞLIĞI VE GEOMETRİK EKRAN DAĞILIMI
+# ANA PANEL BAŞLIĞI VE FORM ALANLARI
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# Ekran boyutuna bağlı kaymaları engellemek için üst üste yerleşim yapısına geçildi
-# Üst Kısım: Giriş ve Çıkış Form Alanları
 with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
     g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
     g_aciklama = st.text_input("Stok Açıklaması / Ürün Adı:", key="g_acik").strip()
@@ -201,13 +199,13 @@ with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
         else:
             st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
-# Alt Kısım: Gelişmiş Raporlama, Özet Listeler ve Silme Motoru
+# ==============================================================================
+# 📊 SAĞLAMLAŞTIRILMIŞ RAPORLAMA VE YÖNETİM MOTORU
+# ==============================================================================
 st.markdown("---")
 st.subheader(YONETIM_UST_YAZI)
 
 arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Stok İsmini yazın:", "").strip().lower()
 
 conn = sqlite3.connect(DB_YOLU)
-
 try:
-    urunler_df = pd.read_sql_query("SELECT * FROM urunler", conn)
