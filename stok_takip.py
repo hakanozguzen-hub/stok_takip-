@@ -20,7 +20,7 @@ URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 # ==============================================================================
 # 💾 SQLITE VERİTABANI MOTORU
 # ==============================================================================
-DB_YOLU = "mayra_stok_veritabani_final_fixed.db"
+DB_YOLU = "stok_takip.db"
 
 def veritabani_kur():
     conn = sqlite3.connect(DB_YOLU)
@@ -86,7 +86,13 @@ with st.sidebar:
         g_df_b.to_excel(writer, sheet_name='Girisler', index=False)
         c_df_b.to_excel(writer, sheet_name='Cikisler', index=False)
     
-    st.download_button(label="📥 Güncelleme Öncesi Verileri Yedekle", data=output_backup.getvalue(), file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_yedek_indir")
+    st.download_button(
+        label="📥 Güncelleme Öncesi Verileri Yedekle",
+        data=output_backup.getvalue(),
+        file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="btn_yedek_indir"
+    )
 
     st.markdown("---")
     
@@ -149,13 +155,14 @@ with sol_panel:
                 conn = sqlite3.connect(DB_YOLU)
                 cursor = conn.cursor()
                 
+                # 🛠️ ÇÖKMEYİ ENGELLEYEN DEĞİŞİKLİK: None dönme ihtimaline karşı if null (or 0) koruması getirildi
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
                 res_g = cursor.fetchone()
-                toplam_giris = res_g if res_g and res_g is not None else 0
+                toplam_giris = (res_g[0] if res_g and res_g[0] is not None else 0)
                 
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
                 res_c = cursor.fetchone()
-                toplam_cikis = res_c if res_c and res_c is not None else 0
+                toplam_cikis = (res_c[0] if res_c and res_c[0] is not None else 0)
                 
                 kalan = toplam_giris - toplam_cikis
                 
@@ -216,4 +223,3 @@ with sag_panel:
     if len(stok_durumu) > 0:
         output_rapor = io.BytesIO()
         with pd.ExcelWriter(output_rapor, engine='xlsxwriter') as writer:
-            df_ozet.to_excel(writer, sheet_name='Stok_Durumu', index=False)
