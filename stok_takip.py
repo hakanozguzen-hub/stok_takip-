@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-import os
+import io
 from datetime import datetime
 
 # ==============================================================================
@@ -18,23 +18,23 @@ SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
 ANA_YAZI_RENK           = "#333333"  # Formların ve düz metinlerin ana yazı rengi
 
 # --- 📝 METİN VE YAZI AYARLARI ---
-PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Stok Takip Sistemi"
+PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
 GIRIS_PANEL_UST_YAZI    = "🟩 STOK GİRİŞİ (ALIM PANELİ)"
 CIKIS_PANEL_UST_YAZI   = "🟥 STOK ÇIKIŞI (TESLİMAT PANELİ)"
 TABLO_UST_YAZI          = "📊 Güncel Stok Durum Raporu"
-YONETIM_UST_YAZI        = "🔍 Ürün Yönetimi ve Detaylı Hareket Geçmişi"
+YONETIM_UST_YAZI        = "🔍 Gelişmiş Filtreleme ve Hareket Geçmişi Raporu"
 
 # --- 🔘 BUTON ÜZERİNDEKİ YAZILAR ---
 GIRIS_KAYDET_BUTON_METNI= "📥 STOK EKLE / SİSTEME GİRİŞ YAP"
 CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
-URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ VE TÜM GEÇMİŞİNİ SİSTEMDEN KALICI OLARAK SİL"
+URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 
 # --- 📐 BOYUT VE FONT AYARLARI ---
 ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
 YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
 
 # ==============================================================================
-# 💾 SQLITE VERİTABANI MOTORU VE BAĞLANTILARI
+# 💾 SQLITE VERİTABANI MOTORU
 # ==============================================================================
 DB_YOLU = "stok_takip.db"
 
@@ -95,6 +95,9 @@ st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>'
 
 sol_panel, sag_panel = st.columns(2)
 
+# ==============================================================================
+# 🟩 SOL PANEL - GİRİŞ VE ÇIKIŞ İŞLEMLERİ
+# ==============================================================================
 with sol_panel:
     with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
         g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
@@ -111,7 +114,7 @@ with sol_panel:
                 cursor.execute("INSERT INTO girisler (stok_kodu, tarih, firma, adet) VALUES (?, ?, ?, ?)", (g_kod, g_tarih, g_firma, g_adet))
                 conn.commit()
                 conn.close()
-                st.success(f"**{g_kod}** kodlu stok ve alım kaydı başarıyla veritabanına işlendi.")
+                st.success(f"**{g_kod}** veritabanına işlendi.")
                 st.rerun()
             else:
                 st.error("Hata: Stok Kodu, Açıklama ve Firma alanları boş bırakılamaz.")
@@ -126,77 +129,62 @@ with sol_panel:
             if c_kod and c_kime:
                 conn = sqlite3.connect(DB_YOLU)
                 cursor = conn.cursor()
+                
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
-                toplam_giris = cursor.fetchone()[0] or 0
+                res_g = cursor.fetchone()[0]
+                toplam_giris = res_g if res_g is not None else 0
+                
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
-                toplam_cikis = cursor.fetchone()[0] or 0
+                res_c = cursor.fetchone()[0]
+                toplam_cikis = res_c if res_c is not None else 0
+                
                 kalan = toplam_giris - toplam_cikis
                 
                 if toplam_giris == 0:
-                    st.error("Hata: Bu stok kodu sistemde tanımlı değil veya hiç alım yapılmamış.")
+                    st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
                 elif c_adet > kalan:
-                    st.error(f"Hata: Yetersiz stok! Depodaki mevcut miktar: {kalan}")
+                    st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
                 else:
                     cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
                     conn.commit()
-                    st.success(f"**{c_kod}** stok çıkış kaydı başarıyla veritabanına işlendi.")
+                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
                     conn.close()
                     st.rerun()
                 conn.close()
             else:
                 st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
+# ==============================================================================
+# 📊 SAĞ PANEL - AKILLI RAPORLAMA VE ÇIKTI ALMA (EXCEL)
+# ==============================================================================
 with sag_panel:
-    st.subheader(TABLO_UST_YAZI)
-    
-    conn = sqlite3.connect(DB_YOLU)
-    query = """
-        SELECT 
-            u.stok_kodu AS 'Stok Kodu',
-            u.aciklama AS 'Stok Açıklaması',
-            IFNULL(g.toplam_g, 0) AS 'Toplam Giriş',
-            IFNULL(c.toplam_c, 0) AS 'Toplam Çıkış',
-            (IFNULL(g.toplam_g, 0) - IFNULL(c.toplam_c, 0)) AS 'Kalan Güncel Stok'
-        FROM urunler u
-        LEFT JOIN (SELECT stok_kodu, SUM(adet) AS toplam_g FROM girisler GROUP BY stok_kodu) g ON u.stok_kodu = g.stok_kodu
-        LEFT JOIN (SELECT stok_kodu, SUM(adet) AS toplam_c FROM cikisler GROUP BY stok_kodu) c ON u.stok_kodu = c.stok_kodu
-    """
-    df_stoklar = pd.read_sql_query(query, conn)
-    conn.close()
-    
-    if not df_stoklar.empty:
-        # Kod buradaki yeni sürüm standardına (width='stretch') göre güncellendi
-        st.dataframe(df_stoklar, width="stretch", hide_index=True)
-    else:
-        st.info("Veritabanında kayıtlı aktif stok datası bulunmuyor.")
-    
-    st.write("---")
     st.subheader(YONETIM_UST_YAZI)
     
+    arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Stok İsmini (Açıklamasını) yazın:", "").strip().lower()
+    
     conn = sqlite3.connect(DB_YOLU)
-    cursor = conn.cursor()
-    cursor.execute("SELECT stok_kodu FROM urunler")
-    urun_listesi = [row[0] for row in cursor.fetchall()]
+    df_g_all = pd.read_sql_query("SELECT stok_kodu AS 'Stok Kodu', tarih AS 'İşlem Tarihi', firma AS 'Kimden Alındı / Firma', adet AS 'Miktar (Giriş)' FROM girisler", conn)
+    df_c_all = pd.read_sql_query("SELECT stok_kodu AS 'Stok Kodu', tarih AS 'İşlem Tarihi', kime AS 'Kime Teslim Edildi / Alıcı', adet AS 'Miktar (Çıkış)' FROM cikisler", conn)
+    df_u_all = pd.read_sql_query("SELECT * FROM urunler", conn)
     conn.close()
     
-    if urun_listesi:
-        secilen_kod = st.selectbox("İncelemek veya silmek istediğiniz Stok Kodunu seçin:", urun_listesi)
-        
-        if secilen_kod:
-            conn = sqlite3.connect(DB_YOLU)
-            cursor = conn.cursor()
-            cursor.execute("SELECT aciklama FROM urunler WHERE stok_kodu=?", (secilen_kod,))
-            mevcut_tanim = cursor.fetchone()[0]
-            st.info(f"📋 **Ürün Kimliği:** {mevcut_tanim}")
-            
-            if st.button(URUN_SIL_BUTON_METNI, key="btn_silme_motoru"):
-                cursor.execute("PRAGMA foreign_keys = ON")
-                cursor.execute("DELETE FROM urunler WHERE stok_kodu=?", (secilen_kod,))
-                cursor.execute("DELETE FROM girisler WHERE stok_kodu=?", (secilen_kod,))
-                cursor.execute("DELETE FROM cikisler WHERE stok_kodu=?", (secilen_kod,))
-                conn.commit()
-                conn.close()
-                st.success(f"{secilen_kod} kodlu ürün veritabanından kalıcı olarak silindi.")
-                st.rerun()
-                
-            df_g_gecmis = pd.read_sql_query("SELECT tarih AS 'Alınma Tarihi', firma AS 'Firma Adı', adet AS 'Adet' FROM girisler WHERE stok_kodu=?", conn, params=(secilen_kod,))
+    isim_sozluk = dict(zip(df_u_all['stok_kodu'], df_u_all['aciklama']))
+    df_g_all['Stok Açıklaması / Ürün Adı'] = df_g_all['Stok Kodu'].map(isim_sozluk)
+    df_c_all['Stok Açıklaması / Ürün Adı'] = df_c_all['Stok Kodu'].map(isim_sozluk)
+    
+    if not df_g_all.empty:
+        df_g_all = df_g_all[['Stok Kodu', 'Stok Açıklaması / Ürün Adı', 'İşlem Tarihi', 'Kimden Alındı / Firma', 'Miktar (Giriş)']]
+    if not df_c_all.empty:
+        df_c_all = df_c_all[['Stok Kodu', 'Stok Açıklaması / Ürün Adı', 'İşlem Tarihi', 'Kime Teslim Edildi / Alıcı', 'Miktar (Çıkış)']]
+
+    if arama_sorgusu:
+        df_g_filtre = df_g_all[df_g_all['Stok Kodu'].str.lower().str.contains(arama_sorgusu) | df_g_all['Stok Açıklaması / Ürün Adı'].str.lower().str.contains(arama_sorgusu)] if not df_g_all.empty else df_g_all
+        df_c_filtre = df_c_all[df_c_all['Stok Kodu'].str.lower().str.contains(arama_sorgusu) | df_c_all['Stok Açıklaması / Ürün Adı'].str.lower().str.contains(arama_sorgusu)] if not df_c_all.empty else df_c_all
+    else:
+        df_g_filtre = df_g_all
+        df_c_filtre = df_c_all
+
+    if arama_sorgusu and (not df_g_filtre.empty or not df_c_filtre.empty):
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            if not df_g_filtre.empty: df_g_filtre.to_excel(writer, sheet_name='Giriş Hareketleri', index=False)
