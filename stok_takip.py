@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
 import io
 from datetime import datetime
 
@@ -8,8 +9,8 @@ from datetime import datetime
 # ==============================================================================
 
 # --- 🎨 RENK AYARLARI ---
-PENCERE_ARKA_PLAN_RENK = "#f4f6f9"  # Ekranın genel arka plan rengi
-KART_ARKA_PLAN_RENK     = "#ffffff"  # Form alanlarının ve kutuların içi
+PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
+KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
 ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
 GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
 CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
@@ -33,14 +34,49 @@ ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
 YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
 
 # ==============================================================================
-# 💾 DOSYASIZ BULUT BELLEK MOTORU (ÇÖKMEYİ ENGELLER)
+# 💾 SQLITE VERİTABANI MOTORU
 # ==============================================================================
-if "stok_deposu" not in st.session_state:
-    st.session_state.stok_deposu = {}
+DB_YOLU = "stok_takip.db"
 
+def veritabani_kur():
+    conn = sqlite3.connect(DB_YOLU)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS urunler (
+            stok_kodu TEXT PRIMARY KEY,
+            aciklama TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS girisler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stok_kodu TEXT,
+            tarih TEXT,
+            firma TEXT,
+            adet INTEGER,
+            FOREIGN KEY(stok_kodu) REFERENCES urunler(stok_kodu) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cikisler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stok_kodu TEXT,
+            tarih TEXT,
+            kime TEXT,
+            adet INTEGER,
+            FOREIGN KEY(stok_kodu) REFERENCES urunler(stok_kodu) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+veritabani_kur()
+
+# ==============================================================================
+# ARKA PLAN TASARIM MOTORU (CSS)
+# ==============================================================================
 st.set_page_config(page_title="Stok Takip Sistemi", layout="wide")
 
-# CSS Tasarım Zorlaması
 st.markdown(f"""
     <style>
     .stApp {{ background-color: {PENCERE_ARKA_PLAN_RENK} !important; color: {ANA_YAZI_RENK} !important; font-family: '{ANA_YAZI_FONTU}' !important; font-size: {YAZI_BOYUTU_PIXER} !important; }}
@@ -55,6 +91,62 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
+# ==============================================================================
+# 🛡️ YENİ: VERİ KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
+# ==============================================================================
+with st.sidebar:
+    st.markdown("## 🛡️ Veri Kaybını Önleme Paneli")
+    st.info("GitHub güncellemesi yapmadan önce verilerinizi yedekleyin. Güncelleme sonrası buradan tekrar yükleyin.")
+    
+    # 1. Excel Olarak Verileri İndirme Butonu
+    try:
+        conn = sqlite3.connect(DB_YOLU)
+        u_df = pd.read_sql_query("SELECT * FROM urunler", conn)
+        g_df = pd.read_sql_query("SELECT * FROM girisler", conn)
+        c_df = pd.read_sql_query("SELECT * FROM cikisler", conn)
+        conn.close()
+        
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            u_df.to_excel(writer, sheet_name='Urunler', index=False)
+            g_df.to_excel(writer, sheet_name='Girisler', index=False)
+            c_df.to_excel(writer, sheet_name='Cikisler', index=False)
+        
+        st.download_button(
+            label="📥 Güncelleme Öncesi Verileri Yedekle",
+            data=output.getvalue(),
+            file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        st.warning("Yedekleme motoru hazır (Veri girişi bekleniyor)")
+
+    st.markdown("---")
+    
+    # 2. Excel Yedeğini Geri Yükleme Alanı
+    yuklenen_dosya = st.file_uploader("📤 Güncelleme Sonrası Yedeği Yükle (.xlsx)", type=["xlsx"])
+    if yuklenen_dosya is not None:
+        if st.button("⚙️ Eski Verileri Sisteme Geri Yükle"):
+            try:
+                excel_u = pd.read_excel(yuklenen_dosya, sheet_name='Urunler')
+                excel_g = pd.read_excel(yuklenen_dosya, sheet_name='Girisler')
+                excel_c = pd.read_excel(yuklenen_dosya, sheet_name='Cikisler')
+                
+                conn = sqlite3.connect(DB_YOLU)
+                # Mevcut boş tabloları silip exceldekileri yazar
+                excel_u.to_sql('urunler', conn, if_exists='replace', index=False)
+                excel_g.to_sql('girisler', conn, if_exists='replace', index=False)
+                excel_c.to_sql('cikisler', conn, if_exists='replace', index=False)
+                conn.commit()
+                conn.close()
+                st.success("🎉 Tüm verileriniz başarıyla kurtarıldı!")
+                st.rerun()
+            except Exception as hata:
+                st.error(f"Yükleme başarısız oldu: {hata}")
+
+# ==============================================================================
+# ANA UYGULAMA EKRANI
+# ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
 sol_panel, sag_panel = st.columns(2)
@@ -72,18 +164,16 @@ with sol_panel:
         
         if st.button(GIRIS_KAYDET_BUTON_METNI, key="btn_g_ekle"):
             if g_kod and g_aciklama and g_firma:
-                if g_kod not in st.session_state.stok_deposu:
-                    st.session_state.stok_deposu[g_kod] = {"aciklama": g_aciklama, "girisler": [], "cikisler": []}
-                else:
-                    st.session_state.stok_deposu[g_kod]["aciklama"] = g_aciklama
-                
-                st.session_state.stok_deposu[g_kod]["girisler"].append({
-                    "Tarih": g_tarih, "Firma": g_firma, "Adet": int(g_adet)
-                })
-                st.success(f"**{g_kod}** başarıyla kaydedildi.")
+                conn = sqlite3.connect(DB_YOLU)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO urunler (stok_kodu, aciklama) VALUES (?, ?)", (g_kod, g_aciklama))
+                cursor.execute("INSERT INTO girisler (stok_kodu, tarih, firma, adet) VALUES (?, ?, ?, ?)", (g_kod, g_tarih, g_firma, g_adet))
+                conn.commit()
+                conn.close()
+                st.success(f"**{g_kod}** veritabanına işlendi.")
                 st.rerun()
             else:
-                st.error("Lütfen Stok Kodu, Açıklama ve Firma alanlarını doldurun.")
+                st.error("Hata: Stok Kodu, Açıklama ve Firma alanları boş bırakılamaz.")
 
     with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
         c_kod = st.text_input("Stok Kodu (Çıkış):", key="c1").strip().upper()
@@ -93,84 +183,21 @@ with sol_panel:
         
         if st.button(CIKIS_KAYDET_BUTON_METNI, key="btn_c_dus"):
             if c_kod and c_kime:
-                if c_kod in st.session_state.stok_deposu:
-                    top_g = sum(item["Adet"] for item in st.session_state.stok_deposu[c_kod]["girisler"])
-                    top_c = sum(item["Adet"] for item in st.session_state.stok_deposu[c_kod]["cikisler"])
-                    kalan = top_g - top_c
-                    
-                    if c_adet > kalan:
-                        st.error(f"Yetersiz stok! Mevcut kalan miktar: {kalan}")
-                    else:
-                        st.session_state.stok_deposu[c_kod]["cikisler"].append({
-                            "Tarih": c_tarih, "Kime": c_kime, "Adet": int(c_adet)
-                        })
-                        st.success(f"**{c_kod}** stok çıkışı yapıldı.")
-                        st.rerun()
+                conn = sqlite3.connect(DB_YOLU)
+                cursor = conn.cursor()
+                
+                cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
+                res_g = cursor.fetchone()[0]
+                toplam_giris = res_g if res_g is not None else 0
+                
+                cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
+                res_c = cursor.fetchone()[0]
+                toplam_cikis = res_c if res_c is not None else 0
+                
+                kalan = toplam_giris - toplam_cikis
+                
+                if toplam_giris == 0:
+                    st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
+                elif c_adet > kalan:
+                    st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
                 else:
-                    st.error("Bu stok kodu sistemde tanımlı değil.")
-            else:
-                st.error("Lütfen çıkış için gerekli tüm alanları doldurun.")
-
-# ==============================================================================
-# 📊 SAĞ PANEL - AKILLI RAPORLAMA VE ÇIKTI ALMA (EXCEL)
-# ==============================================================================
-with sag_panel:
-    st.subheader(YONETIM_UST_YAZI)
-    arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Stok İsmini yazın:", "").strip().lower()
-    
-    # Tüm verileri listelemek için DataFrame listeleri hazırlama
-    liste_g, liste_c, liste_ozet = [], [], []
-    
-    for kod, veri in st.session_state.stok_deposu.items():
-        tanim = veri["aciklama"]
-        t_g = sum(i["Adet"] for item in veri["girisler"] for i in [item])
-        t_c = sum(i["Adet"] for item in veri["cikisler"] for i in [item])
-        liste_ozet.append({"Stok Kodu": kod, "Stok Açıklaması / Ürün Adı": tanim, "Toplam Giriş": t_g, "Toplam Çıkış": t_c, "Kalan Güncel Stok": t_g - t_c})
-        
-        for g in veri["girisler"]:
-            liste_g.append({"Stok Kodu": kod, "Stok Açıklaması / Ürün Adı": tanim, "İşlem Tarihi": g["Tarih"], "Kimden Alındı / Firma": g["Firma"], "Miktar (Giriş)": g["Adet"]})
-        for c in veri["cikisler"]:
-            liste_c.append({"Stok Kodu": kod, "Stok Açıklaması / Ürün Adı": tanim, "İşlem Tarihi": c["Tarih"], "Kime Teslim Edildi / Alıcı": c["Kime"], "Miktar (Çıkış)": c["Adet"]})
-
-    df_g_all = pd.DataFrame(liste_g)
-    df_c_all = pd.DataFrame(liste_c)
-    df_stoklar = pd.DataFrame(liste_ozet)
-
-    # Arama Filtreleme Yapay Zekası
-    if arama_sorgusu:
-        df_g_filtre = df_g_all[df_g_all['Stok Kodu'].str.lower().str.contains(arama_sorgusu) | df_g_all['Stok Açıklaması / Ürün Adı'].str.lower().str.contains(arama_sorgusu)] if not df_g_all.empty else df_g_all
-        df_c_filtre = df_c_all[df_c_all['Stok Kodu'].str.lower().str.contains(arama_sorgusu) | df_c_all['Stok Açıklaması / Ürün Adı'].str.lower().str.contains(arama_sorgusu)] if not df_c_all.empty else df_c_all
-    else:
-        df_g_filtre = df_g_all
-        df_c_filtre = df_c_all
-
-    # Excel Rapor Çıktı Butonu
-    if arama_sorgusu and (not df_g_filtre.empty or not df_c_filtre.empty):
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            if not df_g_filtre.empty: df_g_filtre.to_excel(writer, sheet_name='Giriş Hareketleri', index=False)
-            if not df_c_filtre.empty: df_c_filtre.to_excel(writer, sheet_name='Çıkış Hareketleri', index=False)
-        st.download_button(label="📥 Seçili Raporu Excel Formatında Çıktı Al / İndir", data=buffer.getvalue(), file_name=f"Stok_Raporu_{arama_sorgusu}.xlsx", mime="application/vnd.ms-excel")
-
-    r_sol, r_sag = st.columns(2)
-    with r_sol:
-        st.markdown("### 📥 Filtrelenmiş Giriş Listesi")
-        if not df_g_filtre.empty: st.dataframe(df_g_filtre, width="stretch", hide_index=True)
-        else: st.caption("Kayıt yok.")
-    with r_sag:
-        st.markdown("### 📤 Filtrelenmiş Çıkış Listesi")
-        if not df_c_filtre.empty: st.dataframe(df_c_filtre, width="stretch", hide_index=True)
-        else: st.caption("Kayıt yok.")
-
-    # --- GENEL DURUM ÖZET TABLOSU ---
-    st.write("---")
-    st.subheader(TABLO_UST_YAZI)
-    
-    if not df_stoklar.empty:
-        st.dataframe(df_stoklar, width="stretch", hide_index=True)
-        buf_all = io.BytesIO()
-        with pd.ExcelWriter(buf_all, engine='xlsxwriter') as writer: df_stoklar.to_excel(writer, sheet_name='Genel Özet', index=False)
-        st.download_button(label="📊 Tüm Stok Listesini Excel Olarak İndir", data=buf_all.getvalue(), file_name="Tum_Stok_Listesi.xlsx", mime="application/vnd.ms-excel")
-    else:
-        st.info("Sistemde kayıtlı aktif stok bulunmuyor.")
-
