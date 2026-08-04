@@ -205,10 +205,11 @@ with sag_panel:
             
     st.markdown(f"### {TABLO_UST_YAZI}")
     
+    # Hata çıkarma ihtimali olan tüm iç if mantıkları temizlenerek güvenli hale getirildi
+    df_ozet = pd.DataFrame(stok_durumu)
+    st.dataframe(df_ozet, use_container_width=True)
+    
     if len(stok_durumu) > 0:
-        df_ozet = pd.DataFrame(stok_durumu)
-        st.dataframe(df_ozet, use_container_width=True)
-        
         output_rapor = io.BytesIO()
         df_ozet.to_excel(output_rapor, index=False)
         st.download_button(
@@ -219,13 +220,13 @@ with sag_panel:
             key="btn_excel_rapor"
         )
         
-    if len(stok_durumu) == 0:
-        bos_df = pd.DataFrame(columns=["Stok Kodu", "Açıklama", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok"])
-        st.dataframe(bos_df, use_container_width=True)
-        st.warning("Veritabanı şu an boş. Lütfen ürün girişi yapın veya sol panelden yedek yükleyin.")
-        
     st.markdown("---")
     
     sekme1, sekme2 = st.tabs(["📋 Tüm Giriş Hareketleri", "📋 Tüm Çıkış Hareketleri"])
     with sekme1:
+        g_filtreli = girisler_df
         if not girisler_df.empty:
+            g_filtreli = girisler_df[girisler_df['stok_kodu'].str.lower().str.contains(arama_sorgusu, na=False) | (arama_sorgusu == "")]
+        st.dataframe(g_filtreli[['stok_kodu', 'tarih', 'firma', 'adet']] if not g_filtreli.empty else girisler_df, use_container_width=True)
+            
+    with sekme2:
