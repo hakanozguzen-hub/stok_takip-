@@ -5,17 +5,17 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ
+# 🎛️ GENEL KONTROL PANELİ (HER ŞEYE BURADAN MÜDAHALE EDEBİLİRSİNİZ)
 # ==============================================================================
 
 # --- 🎨 RENK AYARLARI ---
-PENCERE_ARKA_PLAN_RENK = "#314666"  
-KART_ARKA_PLAN_RENK     = "#315366"  
-ANA_BAZ_RENK            = "#2c3e50"  
-GIRIS_BUTON_RENK        = "#27ae60"  
-CIKIS_BUTON_RENK        = "#e74c3c"  
-SILME_BUTON_RENK        = "#c0392b"  
-ANA_YAZI_RENK           = "#333333"  
+PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
+KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
+ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
+GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
+CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
+SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
+ANA_YAZI_RENK           = "#333333"  # Formların ve düz metinlerin ana yazı rengi
 
 # --- 📝 METİN VE YAZI AYARLARI ---
 PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
@@ -30,8 +30,8 @@ CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
 URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 
 # --- 📐 BOYUT VE FONT AYARLARI ---
-ANA_YAZI_FONTU          = "Arial"    
-YAZI_BOYUTU_PIXER       = "15px"     
+ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
+YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
 
 # ==============================================================================
 # 💾 SQLITE VERİTABANI MOTORU
@@ -84,19 +84,27 @@ st.markdown(f"""
     .ozel-ust-baslik h1 {{ color: white !important; font-family: '{ANA_YAZI_FONTU}' !important; font-weight: bold; margin: 0; }}
     .stExpander {{ background-color: {KART_ARKA_PLAN_RENK} !important; border: 2px solid #e0e0e0; border-radius: 8px; }}
     div.stButton > button {{ width: 100%; font-weight: bold !important; color: white !important; border-radius: 6px !important; border: none !important; padding: 10px !important; }}
-    st-key-btn_g_ekle button {{ background-color: {GIRIS_BUTON_RENK} !important; }}
-    st-key-btn_c_dus button {{ background-color: {CIKIS_BUTON_RENK} !important; }}
-    st-key-btn_silme_motoru button {{ background-color: {SILME_BUTON_RENK} !important; }}
+    div[data-testid="stMarkdownContainer"] p {{ color: white !important; }}
     .stTextInput input, .stNumberInput input {{ color: {ANA_YAZI_RENK} !important; }}
     </style>
 """, unsafe_allow_html=True)
 
+# CSS Seçicilerini Buton Key değerlerine göre dinamik olarak enjekte ediyoruz
+st.markdown(f"""
+    <style>
+    div[data-testid="stSidebar"] {{ background-color: #2c3e50 !important; }}
+    button[key="btn_g_ekle"] {{ background-color: {GIRIS_BUTON_RENK} !important; }}
+    button[key="btn_c_dus"] {{ background-color: {CIKIS_BUTON_RENK} !important; }}
+    button[key="btn_silme_motoru"] {{ background-color: {SILME_BUTON_RENK} !important; }}
+    </style>
+""", unsafe_allow_html=True)
+
 # ==============================================================================
-# 🛡️ VERI KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
+# 🛡️ VERİ KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
 # ==============================================================================
 with st.sidebar:
-    st.markdown("## 🛡️ Veri Kaybını Önleme Paneli")
-    st.info("GitHub güncellemesi yapmadan önce verilerinizi yedekleyin. Güncelleme sonrası buradan tekrar yükleyin.")
+    st.markdown("## 🛡️ Mayra Park Veri Koruma")
+    st.write("GitHub güncellemesi yapmadan önce yedek alın, güncelleme bitince yedeği yükleyin.")
     
     try:
         conn = sqlite3.connect(DB_YOLU)
@@ -115,16 +123,17 @@ with st.sidebar:
             label="📥 Güncelleme Öncesi Verileri Yedekle",
             data=output.getvalue(),
             file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="btn_yedek_indir"
         )
     except Exception as e:
-        st.warning("Yedekleme motoru hazır (Veri girişi bekleniyor)")
+        st.warning("Yedekleme motoru aktifleşiyor...")
 
     st.markdown("---")
     
-    yuklenen_dosya = st.file_uploader("📤 Güncelleme Sonrası Yedeği Yükle (.xlsx)", type=["xlsx"])
+    yuklenen_dosya = st.file_uploader("📤 Güncelleme Sonrası Yedeği Yükle (.xlsx)", type=["xlsx"], key="yedek_sec")
     if yuklenen_dosya is not None:
-        if st.button("⚙️ Eski Verileri Sisteme Geri Yükle"):
+        if st.button("⚙️ Eski Verileri Sisteme Geri Yükle", key="btn_yedek_yukle"):
             try:
                 excel_u = pd.read_excel(yuklenen_dosya, sheet_name='Urunler')
                 excel_g = pd.read_excel(yuklenen_dosya, sheet_name='Girisler')
@@ -142,7 +151,7 @@ with st.sidebar:
                 st.error(f"Yükleme başarısız oldu: {hata}")
 
 # ==============================================================================
-# ANA UYGULAMA EKRANI
+# ANA UYGULAMA PANEL BAŞLIĞI
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
@@ -194,16 +203,3 @@ with sol_panel:
                 kalan = toplam_giris - toplam_cikis
                 
                 if toplam_giris == 0:
-                    st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
-                elif c_adet > kalan:
-                    st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
-                else:
-                    cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
-                    conn.commit()
-                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
-                    conn.close()
-                    st.rerun()
-                conn.close()
-            else:
-                st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
-
