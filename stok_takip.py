@@ -18,9 +18,9 @@ CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
 URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 
 # ==============================================================================
-# 💾 SQLITE VERİTABANI MOTORU (TAKILMAYI ÖNLEYEN YENİ TEMİZ DOSYA ADI)
+# 💾 SQLITE VERİTABANI MOTORU
 # ==============================================================================
-DB_YOLU = "mayra_stok_sistemi.db"
+DB_YOLU = "mayra_stok_sistemi_yeni.db"
 
 def veritabani_kur():
     conn = sqlite3.connect(DB_YOLU)
@@ -180,7 +180,7 @@ with sol_panel:
                 st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
 # ==============================================================================
-# 📊 SAĞ PANEL - TÜM RAPORLAMA VE YÖNETİM MOTORU (ZORLANMIŞ ŞABLON)
+# 📊 SAĞ PANEL - TÜM RAPORLAMA VE YÖNETİM MOTORU
 # ==============================================================================
 with sag_panel:
     st.subheader(YONETIM_UST_YAZI)
