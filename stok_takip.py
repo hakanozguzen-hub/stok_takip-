@@ -185,7 +185,7 @@ with sol_panel:
 with sag_panel:
     st.subheader(YONETIM_UST_YAZI)
     
-    arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Ürün Adını yazıp Enter'a basın:", "").strip().lower()
+    arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Ürün Adını yazın:", "").strip().lower()
     
     conn = sqlite3.connect(DB_YOLU)
     urunler_df = pd.read_sql_query("SELECT * FROM urunler", conn)
