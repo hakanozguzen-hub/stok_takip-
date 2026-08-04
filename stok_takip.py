@@ -86,13 +86,7 @@ with st.sidebar:
         g_df_b.to_excel(writer, sheet_name='Girisler', index=False)
         c_df_b.to_excel(writer, sheet_name='Cikisler', index=False)
     
-    st.download_button(
-        label="📥 Güncelleme Öncesi Verileri Yedekle",
-        data=output_backup.getvalue(),
-        file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="btn_yedek_indir"
-    )
+    st.download_button(label="📥 Güncelleme Öncesi Verileri Yedekle", data=output_backup.getvalue(), file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_yedek_indir")
 
     st.markdown("---")
     
@@ -185,7 +179,7 @@ with sol_panel:
 with sag_panel:
     st.subheader(YONETIM_UST_YAZI)
     
-    arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Ürün Adını yazıp Enter'a basın:", "").strip().lower()
+    arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Ürün Adını yazın:", "").strip().lower()
     
     conn = sqlite3.connect(DB_YOLU)
     urunler_df = pd.read_sql_query("SELECT * FROM urunler", conn)
@@ -223,4 +217,3 @@ with sag_panel:
         output_rapor = io.BytesIO()
         with pd.ExcelWriter(output_rapor, engine='xlsxwriter') as writer:
             df_ozet.to_excel(writer, sheet_name='Stok_Durumu', index=False)
-        st.download_button(
