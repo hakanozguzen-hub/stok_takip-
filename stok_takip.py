@@ -15,7 +15,7 @@ ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonları
 GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
 CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
 SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
-ANA_YAZI_RENK           = "#ffffff"  # Formların ve düz metinlerin ana yazı rengi
+ANA_YAZI_RENK           = "#000000"  # Formların ve düz metinlerin ana yazı rengi
 
 # --- 📝 METİN VE YAZI AYARLARI ---
 PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
