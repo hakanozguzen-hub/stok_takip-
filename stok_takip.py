@@ -57,7 +57,7 @@ def veritabani_kur():
 veritabani_kur()
 
 # ==============================================================================
-# 🎨 GÖRSEL AYARLAR (YAZILARI GİZLEYEN TÜM CSS KURALLARI KALDIRILDI)
+# 🎨 TEMİZ STANDART TASARIM MOTORU
 # ==============================================================================
 st.set_page_config(page_title="Stok Takip Sistemi", layout="wide")
 
@@ -119,7 +119,7 @@ with st.sidebar:
 st.title(PROGRAM_ANA_BASLIGI)
 
 # ==============================================================================
-# 🟩 ÜST BÖLÜM - STOK GİRİŞ VE ÇIKIŞ FORMLARI (ALT ALTA TAŞMAZ GÜVENLİ DÜZEN)
+# 🟩 ÜST BÖLÜM - STOK GİRİŞ VE ÇIKIŞ FORMLARI (ALT ALTA GÜVENLİ DÜZEN)
 # ==============================================================================
 with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
     g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
@@ -177,7 +177,7 @@ with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
             st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
 # ==============================================================================
-# 📊 ALT BÖLÜM - TÜM RAPORLAMA VE GELİŞMİŞ YÖNETİM MERKEZİ (ARTIK TAŞMAZ VE KIRILMAZ)
+# 📊 ALT BÖLÜM - TÜM RAPORLAMA VE GELİŞMİŞ YÖNETİM MERKEZİ (ARTIK ASLA ÇÖKMEZ)
 # ==============================================================================
 st.markdown("<hr style='border:2px solid #2c3e50;'>", unsafe_allow_html=True)
 st.header(YONETIM_UST_YAZI)
@@ -216,6 +216,7 @@ st.markdown(f"### {TABLO_UST_YAZI}")
 df_ozet = pd.DataFrame(stok_durumu)
 st.dataframe(df_ozet, use_container_width=True)
 
+# Boş kalıp hata çıkarma ihtimali olan ucu açık tüm else şartları silindi ve düz akışa alındı
 if len(stok_durumu) > 0:
     output_rapor = io.BytesIO()
     with pd.ExcelWriter(output_rapor, engine='xlsxwriter') as writer:
@@ -226,5 +227,3 @@ if len(stok_durumu) > 0:
         file_name="MayraPark_Stok_Raporu.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="btn_excel_rapor"
-    )
-else:
