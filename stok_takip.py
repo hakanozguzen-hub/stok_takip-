@@ -57,15 +57,13 @@ def veritabani_kur():
 veritabani_kur()
 
 # ==============================================================================
-# 🎨 TEMİZ TASARIM MOTORU (YAZI KÖRLÜĞÜNÜ BİTİREN KESİN CSS)
+# 🎨 TEMİZ TASARIM MOTORU
 # ==============================================================================
 st.set_page_config(page_title="Stok Takip Sistemi", layout="wide")
 
-# Yazıları kör eden tüm hatalı CSS renk dayatmaları tamamen kaldırıldı.
 st.markdown("""
     <style>
     div.stButton > button { width: 100%; font-weight: bold; padding: 10px; border-radius: 6px; }
-    /* Buton renklerini ayırt edilebilir ve okunur yapar */
     button[key="btn_g_ekle"] { background-color: #27ae60 !important; color: white !important; }
     button[key="btn_c_dus"] { background-color: #e74c3c !important; color: white !important; }
     button[key="btn_silme_motoru"] { background-color: #c0392b !important; color: white !important; }
@@ -79,28 +77,31 @@ with st.sidebar:
     st.markdown("## 🛡️ Mayra Park Veri Koruma")
     st.write("GitHub güncellemesi yapmadan önce yedek alın, güncelleme bitince yedeği yükleyin.")
     
+    # Güvenli Okuma: Veritabanı boş olsa bile hata vermez, boş liste üretir
     try:
         conn = sqlite3.connect(DB_YOLU)
         u_df = pd.read_sql_query("SELECT * FROM urunler", conn)
         g_df = pd.read_sql_query("SELECT * FROM girisler", conn)
         c_df = pd.read_sql_query("SELECT * FROM cikisler", conn)
         conn.close()
+    except Exception:
+        u_df = pd.DataFrame(columns=['stok_kodu', 'aciklama'])
+        g_df = pd.DataFrame(columns=['id', 'stok_kodu', 'tarih', 'firma', 'adet'])
+        c_df = pd.DataFrame(columns=['id', 'stok_kodu', 'tarih', 'kime', 'adet'])
         
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            u_df.to_excel(writer, sheet_name='Urunler', index=False)
-            g_df.to_excel(writer, sheet_name='Girisler', index=False)
-            c_df.to_excel(writer, sheet_name='Cikisler', index=False)
-        
-        st.download_button(
-            label="📥 Güncelleme Öncesi Verileri Yedekle",
-            data=output.getvalue(),
-            file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="btn_yedek_indir"
-        )
-    except Exception as e:
-        pass
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        u_df.to_excel(writer, sheet_name='Urunler', index=False)
+        g_df.to_excel(writer, sheet_name='Girisler', index=False)
+        c_df.to_excel(writer, sheet_name='Cikisler', index=False)
+    
+    st.download_button(
+        label="📥 Güncelleme Öncesi Verileri Yedekle",
+        data=output.getvalue(),
+        file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="btn_yedek_indir"
+    )
 
     st.markdown("---")
     
@@ -126,7 +127,6 @@ with st.sidebar:
 # Ana Başlık
 st.title(PROGRAM_ANA_BASLIGI)
 
-# Orijinal yan yana iki sütunlu düzene geri dönüyoruz
 sol_panel, sag_panel = st.columns(2)
 
 # ==============================================================================
@@ -166,11 +166,11 @@ with sol_panel:
                 
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
                 res_g = cursor.fetchone()
-                toplam_giris = res_g if res_g and res_g is not None else 0
+                toplam_giris = res_g[0] if res_g and res_g[0] is not None else 0
                 
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
                 res_c = cursor.fetchone()
-                toplam_cikis = res_c if res_c and res_c is not None else 0
+                toplam_cikis = res_c[0] if res_c and res_c[0] is not None else 0
                 
                 kalan = toplam_giris - toplam_cikis
                 
@@ -189,30 +189,29 @@ with sol_panel:
                 st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
 # ==============================================================================
-# 📊 SAĞ PANEL - TÜM RAPORLAMA VE YÖNETİM MOTORU (GERİ GELDİ VE OKUNUR)
+# 📊 SAĞ PANEL - TÜM RAPORLAMA VE YÖNETİM MOTORU (KESİN KİLİTLENDİ)
 # ==============================================================================
 with sag_panel:
     st.subheader(YONETIM_UST_YAZI)
     
     arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Ürün Adını yazın:", "").strip().lower()
     
+    # Sağ panel verilerini her koşulda okumayı garanti ediyoruz
     conn = sqlite3.connect(DB_YOLU)
-    
     try:
         urunler_df = pd.read_sql_query("SELECT * FROM urunler", conn)
         girisler_df = pd.read_sql_query("SELECT * FROM girisler", conn)
         cikisler_df = pd.read_sql_query("SELECT * FROM cikisler", conn)
-    except Exception as e:
+    except Exception:
         urunler_df = pd.DataFrame(columns=['stok_kodu', 'aciklama'])
         girisler_df = pd.DataFrame(columns=['id', 'stok_kodu', 'tarih', 'firma', 'adet'])
         cikisler_df = pd.DataFrame(columns=['id', 'stok_kodu', 'tarih', 'kime', 'adet'])
     
     stok_durumu = []
     
-    for idx, row in urunler_df.iterrows():
-        skod = str(row['stok_kodu'])
-        aciklama = str(row['aciklama'])
-        
-        g_toplam = girisler_df[girisler_df['stok_kodu'] == skod]['adet'].sum()
-        c_toplam = cikisler_df[cikisler_df['stok_kodu'] == skod]['adet'].sum()
-        
+    # Veri setleri boş olsa bile döngünün çökmesini engelliyoruz
+    if not urunler_df.empty:
+        for idx, row in urunler_df.iterrows():
+            skod = str(row['stok_kodu'])
+            aciklama = str(row['aciklama'])
+            
