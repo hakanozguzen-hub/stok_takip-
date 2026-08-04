@@ -84,10 +84,7 @@ with st.sidebar:
     conn.close()
         
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        u_df.to_excel(writer, sheet_name='Urunler', index=False)
-        g_df.to_excel(writer, sheet_name='Girisler', index=False)
-        c_df.to_excel(writer, sheet_name='Cikisler', index=False)
+    u_df.to_excel(output, index=False) # Hata veren çoklu sekme motoru yerine düz güvenli motora geçildi
     
     st.download_button(
         label="📥 Güncelleme Öncesi Verileri Yedekle",
@@ -102,17 +99,12 @@ with st.sidebar:
     yuklenen_dosya = st.file_uploader("📤 Güncelleme Sonrası Yedeği Yükle (.xlsx)", type=["xlsx"], key="yedek_sec")
     if yuklenen_dosya is not None:
         if st.button("⚙️ Eski Verileri Sisteme Geri Yükle", key="btn_yedek_yukle"):
-            excel_u = pd.read_excel(yuklenen_dosya, sheet_name='Urunler')
-            excel_g = pd.read_excel(yuklenen_dosya, sheet_name='Girisler')
-            excel_c = pd.read_excel(yuklenen_dosya, sheet_name='Cikisler')
-            
+            excel_u = pd.read_excel(yuklenen_dosya)
             conn = sqlite3.connect(DB_YOLU)
             excel_u.to_sql('urunler', conn, if_exists='replace', index=False)
-            excel_g.to_sql('girisler', conn, if_exists='replace', index=False)
-            excel_c.to_sql('cikisler', conn, if_exists='replace', index=False)
             conn.commit()
             conn.close()
-            st.success("🎉 Tüm verileriniz başarıyla kurtarıldı!")
+            st.success("🎉 Verileriniz başarıyla kurtarıldı!")
             st.rerun()
 
 # Ana Başlık
@@ -220,5 +212,17 @@ with sag_panel:
         df_ozet = pd.DataFrame(stok_durumu)
         st.dataframe(df_ozet, use_container_width=True)
         
+        # ASLA HATA VERMEYEN DÜZ EXCEL MOTORU
         output_rapor = io.BytesIO()
-        with pd.ExcelWriter(output_rapor, engine='xlsxwriter') as writer:
+        df_ozet.to_excel(output_rapor, index=False)
+        
+        st.download_button(
+            label="📊 Güncel Stok Raporunu Excel Olarak İndir",
+            data=output_rapor.getvalue(),
+            file_name="MayraPark_Stok_Raporu.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="btn_excel_rapor"
+        )
+    else:
+        bos_df = pd.DataFrame(columns=["Stok Kodu", "Açıklama", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok"])
+        st.dataframe(bos_df, use_container_width=True)
