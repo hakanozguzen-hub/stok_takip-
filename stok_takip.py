@@ -5,17 +5,33 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ
+# 🎛️ GENEL KONTROL PANELİ (HER ŞEYE BURADAN MÜDAHALE EDEBİLİRSİNİZ)
 # ==============================================================================
+
+# --- 🎨 RENK AYARLARI ---
+PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
+KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
+ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
+GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
+CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
+SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
+ANA_YAZI_RENK           = "#ffffff"  # Formların ve düz metinlerin ana yazı rengi
+
+# --- 📝 METİN VE YAZI AYARLARI ---
 PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
 GIRIS_PANEL_UST_YAZI    = "🟩 STOK GİRİŞİ (ALIM PANELİ)"
 CIKIS_PANEL_UST_YAZI   = "🟥 STOK ÇIKIŞI (TESLİMAT PANELİ)"
 TABLO_UST_YAZI          = "📊 Güncel Stok Durum Raporu"
 YONETIM_UST_YAZI        = "🔍 Gelişmiş Filtreleme ve Hareket Geçmişi Raporu"
 
+# --- 🔘 BUTON ÜZERİNDEKİ YAZILAR ---
 GIRIS_KAYDET_BUTON_METNI= "📥 STOK EKLE / SİSTEME GİRİŞ YAP"
 CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
 URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
+
+# --- 📐 BOYUT VE FONT AYARLARI ---
+ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
+YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
 
 # ==============================================================================
 # 💾 SQLITE VERİTABANI MOTORU
@@ -57,16 +73,24 @@ def veritabani_kur():
 veritabani_kur()
 
 # ==============================================================================
-# 🎨 TEMİZ TASARIM MOTORU
+# 🎨 Gelişmiş Tasarım Motoru (CSS Kontrolü Aktif Edildi)
 # ==============================================================================
 st.set_page_config(page_title="Stok Takip Sistemi", layout="wide")
 
-st.markdown("""
+st.markdown(f"""
     <style>
-    div.stButton > button { width: 100%; font-weight: bold; padding: 10px; border-radius: 6px; }
-    button[key="btn_g_ekle"] { background-color: #27ae60 !important; color: white !important; }
-    button[key="btn_c_dus"] { background-color: #e74c3c !important; color: white !important; }
-    button[key="btn_silme_motoru"] { background-color: #c0392b !important; color: white !important; }
+    .stApp {{ background-color: {PENCERE_ARKA_PLAN_RENK} !important; color: {ANA_YAZI_RENK} !important; font-family: '{ANA_YAZI_FONTU}' !important; font-size: {YAZI_BOYUTU_PIXER} !important; }}
+    .stExpander {{ background-color: {KART_ARKA_PLAN_RENK} !important; border: 2px solid #e0e0e0; border-radius: 8px; }}
+    div.stButton > button {{ width: 100%; font-weight: bold !important; color: white !important; border-radius: 6px !important; border: none !important; padding: 10px !important; }}
+    
+    /* Buton Key Renk Atamaları */
+    button[key="btn_g_ekle"] {{ background-color: {GIRIS_BUTON_RENK} !important; }}
+    button[key="btn_c_dus"] {{ background-color: {CIKIS_BUTON_RENK} !important; }}
+    button[key="btn_silme_motoru"] {{ background-color: {SILME_BUTON_RENK} !important; }}
+    
+    /* Başlık ve Yazı Karakteri Eşitlemesi */
+    h1, h2, h3, h4, h5, h6, p, label, .stSubheader {{ font-family: '{ANA_YAZI_FONTU}' !important; color: white !important; }}
+    div[data-testid="stSidebar"] {{ background-color: {ANA_BAZ_RENK} !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -84,7 +108,7 @@ with st.sidebar:
     conn.close()
         
     output = io.BytesIO()
-    u_df.to_excel(output, index=False) # Hata veren çoklu sekme motoru yerine düz güvenli motora geçildi
+    u_df.to_excel(output, index=False)
     
     st.download_button(
         label="📥 Güncelleme Öncesi Verileri Yedekle",
@@ -191,38 +215,3 @@ with sag_panel:
         aciklama = str(row['aciklama'])
         
         g_toplam = girisler_df[girisler_df['stok_kodu'] == skod]['adet'].sum()
-        c_toplam = cikisler_df[cikisler_df['stok_kodu'] == skod]['adet'].sum()
-        
-        g_toplam = int(g_toplam) if pd.notna(g_toplam) else 0
-        c_toplam = int(c_toplam) if pd.notna(c_toplam) else 0
-        kalan_stok = g_toplam - c_toplam
-        
-        if arama_sorgusu in skod.lower() or arama_sorgusu in aciklama.lower():
-            stok_durumu.append({
-                "Stok Kodu": skod,
-                "Açıklama": aciklama,
-                "Toplam Giriş": g_toplam,
-                "Toplam Çıkış": c_toplam,
-                "Mevcut Stok": kalan_stok
-            })
-            
-    st.markdown(f"### {TABLO_UST_YAZI}")
-    
-    if len(stok_durumu) > 0:
-        df_ozet = pd.DataFrame(stok_durumu)
-        st.dataframe(df_ozet, use_container_width=True)
-        
-        # ASLA HATA VERMEYEN DÜZ EXCEL MOTORU
-        output_rapor = io.BytesIO()
-        df_ozet.to_excel(output_rapor, index=False)
-        
-        st.download_button(
-            label="📊 Güncel Stok Raporunu Excel Olarak İndir",
-            data=output_rapor.getvalue(),
-            file_name="MayraPark_Stok_Raporu.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="btn_excel_rapor"
-        )
-    else:
-        bos_df = pd.DataFrame(columns=["Stok Kodu", "Açıklama", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok"])
-        st.dataframe(bos_df, use_container_width=True)
