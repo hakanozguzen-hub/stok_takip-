@@ -5,33 +5,28 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ (HER ŞEYE BURADAN MÜDAHALE EDEBİLİRSİNİZ)
+# 🎛️ GENEL KONTROL PANELİ
 # ==============================================================================
+PENCERE_ARKA_PLAN_RENK = "#314666"  
+KART_ARKA_PLAN_RENK     = "#315366"  
+ANA_BAZ_RENK            = "#2c3e50"  
+GIRIS_BUTON_RENK        = "#27ae60"  
+CIKIS_BUTON_RENK        = "#e74c3c"  
+SILME_BUTON_RENK        = "#c0392b"  
+ANA_YAZI_RENK           = "#333333"  
 
-# --- 🎨 RENK AYARLARI ---
-PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
-KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
-ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
-GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
-CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
-SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
-ANA_YAZI_RENK           = "#333333"  # Formların ve düz metinlerin ana yazı rengi
-
-# --- 📝 METİN VE YAZI AYARLARI ---
 PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
 GIRIS_PANEL_UST_YAZI    = "🟩 STOK GİRİŞİ (ALIM PANELİ)"
 CIKIS_PANEL_UST_YAZI   = "🟥 STOK ÇIKIŞI (TESLİMAT PANELİ)"
 TABLO_UST_YAZI          = "📊 Güncel Stok Durum Raporu"
 YONETIM_UST_YAZI        = "🔍 Gelişmiş Filtreleme ve Hareket Geçmişi Raporu"
 
-# --- 🔘 BUTON ÜZERİNDEKİ YAZILAR ---
-GIRIS_KAYDET_BUTON_METNI= "📥 STOK EKLE / SİSTEME GİRİŞ YAP"
+GIRIS_KAYRET_BUTON_METNI= "📥 STOK EKLE / SİSTEME GİRİŞ YAP"
 CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
 URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 
-# --- 📐 BOYUT VE FONT AYARLARI ---
-ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
-YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
+ANA_YAZI_FONTU          = "Arial"    
+YAZI_BOYUTU_PIXER       = "15px"     
 
 # ==============================================================================
 # 💾 SQLITE VERİTABANI MOTORU
@@ -86,12 +81,6 @@ st.markdown(f"""
     div.stButton > button {{ width: 100%; font-weight: bold !important; color: white !important; border-radius: 6px !important; border: none !important; padding: 10px !important; }}
     div[data-testid="stMarkdownContainer"] p {{ color: white !important; }}
     .stTextInput input, .stNumberInput input {{ color: {ANA_YAZI_RENK} !important; }}
-    </style>
-""", unsafe_allow_html=True)
-
-# CSS Seçicilerini Buton Key değerlerine göre dinamik olarak enjekte ediyoruz
-st.markdown(f"""
-    <style>
     div[data-testid="stSidebar"] {{ background-color: #2c3e50 !important; }}
     button[key="btn_g_ekle"] {{ background-color: {GIRIS_BUTON_RENK} !important; }}
     button[key="btn_c_dus"] {{ background-color: {CIKIS_BUTON_RENK} !important; }}
@@ -155,6 +144,9 @@ with st.sidebar:
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
+# Ekran kaymasını önlemek için Üst Sekme Yapısına Geçiyoruz
+sekme_islem, sekme_raporlar = st.columns([1, 1])
+
 sol_panel, sag_panel = st.columns(2)
 
 # ==============================================================================
@@ -168,7 +160,7 @@ with sol_panel:
         g_firma = st.text_input("Hangi Firmadan Alındı:", key="g3")
         g_adet = st.number_input("Alım Adeti:", min_value=1, step=1, key="g4")
         
-        if st.button(GIRIS_KAYDET_BUTON_METNI, key="btn_g_ekle"):
+        if st.button(GIRIS_KAYRET_BUTON_METNI, key="btn_g_ekle"):
             if g_kod and g_aciklama and g_firma:
                 conn = sqlite3.connect(DB_YOLU)
                 cursor = conn.cursor()
@@ -193,13 +185,21 @@ with sol_panel:
                 cursor = conn.cursor()
                 
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
-                res_g = cursor.fetchone()[0]
-                toplam_giris = res_g if res_g is not None else 0
+                res_g = cursor.fetchone()
+                toplam_giris = res_g[0] if res_g and res_g[0] is not None else 0
                 
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
-                res_c = cursor.fetchone()[0]
-                toplam_cikis = res_c if res_c is not None else 0
+                res_c = cursor.fetchone()
+                toplam_cikis = res_c[0] if res_c and res_c[0] is not None else 0
                 
                 kalan = toplam_giris - toplam_cikis
                 
                 if toplam_giris == 0:
+                    st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
+                elif c_adet > kalan:
+                    st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
+                else:
+                    cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
+                    conn.commit()
+                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
+                    conn.close()
