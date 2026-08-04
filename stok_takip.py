@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import io
+import os
 from datetime import datetime
 
 # ==============================================================================
@@ -34,9 +35,11 @@ ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
 YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
 
 # ==============================================================================
-# 💾 SQLITE VERİTABANI MOTORU
+# 💾 İNTERNET VE BULUT UYUMLU VERİTABANI MOTORU
 # ==============================================================================
-DB_YOLU = "stok_takip.db"
+# Sunucuda veya yerelde çalışırken yolun bozulmaması için otomatik dizin bulucu
+GECERLI_DIZIN = os.path.dirname(os.path.abspath(__file__))
+DB_YOLU = os.path.join(GECERLI_DIZIN, "stok_takip.db")
 
 def veritabani_kur():
     conn = sqlite3.connect(DB_YOLU)
@@ -141,9 +144,9 @@ with sol_panel:
                 kalan = toplam_giris - toplam_cikis
                 
                 if toplam_giris == 0:
-                    st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
+                    st.error("Hata: Bu stok kodu sistemde tanımlı değil veya hiç alım yapılmamış.")
                 elif c_adet > kalan:
-                    st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
+                    st.error(f"Hata: Yetersiz stok! Depodaki mevcut miktar: {kalan}")
                 else:
                     cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
                     conn.commit()
@@ -186,5 +189,3 @@ with sag_panel:
 
     if arama_sorgusu and (not df_g_filtre.empty or not df_c_filtre.empty):
         buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            if not df_g_filtre.empty: df_g_filtre.to_excel(writer, sheet_name='Giriş Hareketleri', index=False)
