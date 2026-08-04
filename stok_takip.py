@@ -144,7 +144,7 @@ with st.sidebar:
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# Ekranı net bir şekilde ikiye bölüyoruz
+# Ekranı dikey olarak iki eşit parçaya böler
 sol_panel, sag_panel = st.columns(2)
 
 # ==============================================================================
