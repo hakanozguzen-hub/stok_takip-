@@ -144,7 +144,6 @@ with st.sidebar:
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# Ekranı dikey olarak iki eşit parçaya böler
 sol_panel, sag_panel = st.columns(2)
 
 # ==============================================================================
@@ -184,11 +183,13 @@ with sol_panel:
                 
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
                 res_g = cursor.fetchone()
-                toplam_giris = res_g[0] if res_g and res_g[0] is not None else 0
+                toplam_grid = res_g if res_g and res_g[0] is not None else (0,)
+                toplam_giris = toplam_grid[0] if type(toplam_grid) is tuple else (toplam_grid if toplam_grid is not None else 0)
                 
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
                 res_c = cursor.fetchone()
-                toplam_cikis = res_c[0] if res_c and res_c[0] is not None else 0
+                toplam_cik = res_c if res_c and res_c[0] is not None else (0,)
+                toplam_cikis = toplam_cik[0] if type(toplam_cik) is tuple else (toplam_cik if toplam_cik is not None else 0)
                 
                 kalan = toplam_giris - toplam_cikis
                 
@@ -198,9 +199,3 @@ with sol_panel:
                     st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
                 else:
                     cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
-                    conn.commit()
-                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
-                    conn.close()
-                    st.rerun()
-                conn.close()
-            else:
