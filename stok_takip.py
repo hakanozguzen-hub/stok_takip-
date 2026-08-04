@@ -85,6 +85,8 @@ st.markdown(f"""
     button[key="btn_g_ekle"] {{ background-color: {GIRIS_BUTON_RENK} !important; }}
     button[key="btn_c_dus"] {{ background-color: {CIKIS_BUTON_RENK} !important; }}
     button[key="btn_silme_motoru"] {{ background-color: {SILME_BUTON_RENK} !important; }}
+    /* Sekme butonlarının yazılarını okunabilir yapar */
+    button[id^="tabs-bnd"] {{ color: white !important; font-weight: bold !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -140,16 +142,18 @@ with st.sidebar:
                 st.error(f"Yükleme başarısız oldu: {hata}")
 
 # ==============================================================================
-# ANA PANEL BAŞLIĞI VE SÜTUN DAĞILIMI
+# ANA PANEL BAŞLIĞI VE SEKMELİ EKRAN YAPISI (KESİN ÇÖZÜM)
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-sol_panel, sag_panel = st.columns(2)
+# Ekranda kaybolmayı engellemek için her şeyi 2 büyük Üst Sekmeye ayırıyoruz
+sekme_islemler, sekme_raporlama = st.tabs(["📝 STOK GİRİŞ / ÇIKIŞ İŞLEMLERİ", "📊 STOK RAPORLARI VE YÖNETİM"])
 
 # ==============================================================================
-# 🟩 SOL PANEL - GİRİŞ VE ÇIKIŞ İŞLEMLERİ
+# 🟩 SEKME 1 - GİRİŞ VE ÇIKIŞ İŞLEMLERİ
 # ==============================================================================
-with sol_panel:
+with sekme_islemler:
+    st.markdown("<br>", unsafe_allow_html=True)
     with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
         g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
         g_aciklama = st.text_input("Stok Açıklaması / Ürün Adı:", key="g_acik").strip()
@@ -183,25 +187,16 @@ with sol_panel:
                 
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
                 res_g = cursor.fetchone()
-                toplam_giris = res_g[0] if res_g and res_g[0] is not None else 0
+                toplam_grid = res_g[0] if res_g and res_g[0] is not None else 0
                 
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
                 res_c = cursor.fetchone()
-                toplam_cikis = res_c[0] if res_c and res_c[0] is not None else 0
+                toplam_cik = res_c[0] if res_c and res_c[0] is not None else 0
                 
-                kalan = toplam_giris - toplam_cikis
+                kalan = toplam_grid - toplam_cik
                 
-                if toplam_giris == 0:
+                if toplam_grid == 0:
                     st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
                 elif c_adet > kalan:
                     st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
                 else:
-                    cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
-                    conn.commit()
-                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
-                    conn.close()
-                    st.rerun()
-                conn.close()
-            else:
-                st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
-
