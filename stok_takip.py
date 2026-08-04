@@ -205,7 +205,6 @@ with sag_panel:
             
     st.markdown(f"### {TABLO_UST_YAZI}")
     
-    # Hata çıkarma ihtimali olan tüm iç if mantıkları temizlenerek güvenli hale getirildi
     df_ozet = pd.DataFrame(stok_durumu)
     st.dataframe(df_ozet, use_container_width=True)
     
@@ -222,11 +221,13 @@ with sag_panel:
         
     st.markdown("---")
     
-    sekme1, sekme2 = st.tabs(["📋 Tüm Giriş Hareketleri", "📋 Tüm Çıkış Hareketleri"])
-    with sekme1:
-        g_filtreli = girisler_df
-        if not girisler_df.empty:
-            g_filtreli = girisler_df[girisler_df['stok_kodu'].str.lower().str.contains(arama_sorgusu, na=False) | (arama_sorgusu == "")]
-        st.dataframe(g_filtreli[['stok_kodu', 'tarih', 'firma', 'adet']] if not g_filtreli.empty else girisler_df, use_container_width=True)
+    # Girinti hatası çıkaran st.tabs tamamen düz dikey listeye dönüştürülmüştür
+    st.markdown("### 📋 Tüm Giriş Hareketleri")
+    g_filtreli = girisler_df
+    if not girisler_df.empty:
+        g_filtreli = girisler_df[girisler_df['stok_kodu'].str.lower().str.contains(arama_sorgusu, na=False) | (arama_sorgusu == "")]
+    st.dataframe(g_filtreli[['stok_kodu', 'tarih', 'firma', 'adet']] if not g_filtreli.empty else girisler_df, use_container_width=True)
             
-    with sekme2:
+    st.markdown("### 📋 Tüm Çıkış Hareketleri")
+    c_filtreli = cikisler_df
+    if not cikisler_df.empty:
