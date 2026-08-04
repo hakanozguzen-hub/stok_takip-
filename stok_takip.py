@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ
+# 🎛️ GENEL KONTROL PANELİ (RENK VE YAZI AYARLARI)
 # ==============================================================================
 PENCERE_ARKA_PLAN_RENK = "#314666"  
 KART_ARKA_PLAN_RENK     = "#315366"  
@@ -79,14 +79,12 @@ st.markdown(f"""
     .ozel-ust-baslik h1 {{ color: white !important; font-family: '{ANA_YAZI_FONTU}' !important; font-weight: bold; margin: 0; }}
     .stExpander {{ background-color: {KART_ARKA_PLAN_RENK} !important; border: 2px solid #e0e0e0; border-radius: 8px; }}
     div.stButton > button {{ width: 100%; font-weight: bold !important; color: white !important; border-radius: 6px !important; border: none !important; padding: 10px !important; }}
-    st-key-btn_g_ekle button {{ background-color: {GIRIS_BUTON_RENK} !important; }}
-    st-key-btn_c_dus button {{ background-color: {CIKIS_BUTON_RENK} !important; }}
-    st-key-btn_silme_motoru button {{ background-color: {SILME_BUTON_RENK} !important; }}
+    button[key="btn_g_ekle"] {{ background-color: {GIRIS_BUTON_RENK} !important; }}
+    button[key="btn_c_dus"] {{ background-color: {CIKIS_BUTON_RENK} !important; }}
+    button[key="btn_silme_motoru"] {{ background-color: {SILME_BUTON_RENK} !important; }}
     .stTextInput input, .stNumberInput input {{ color: {ANA_YAZI_RENK} !important; }}
     div[data-testid="stSidebar"] {{ background-color: #2c3e50 !important; }}
-    /* Üst sekme başlıklarının rengini beyaz ve belirgin yapar */
-    button[data-testid="stMarkdownContainer"] p {{ color: white !important; }}
-    .stTabs [data-baseweb="tab"] p {{ color: white !important; font-weight: bold !important; font-size: 16px !important; }}
+    div[data-testid="stMarkdownContainer"] p {{ color: white !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -144,62 +142,67 @@ with st.sidebar:
 # Başlık Şeridi
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# EKRAN KAYMALARINI %100 ÖNLEYEN ÜST ANA SEKMELER
-ana_sekme1, ana_sekme2 = st.tabs(["📝 STOK GİRİŞ / ÇIKIŞ FORM PANELİ", "📊 CANLI RAPORLAR VE YÖNETİM MERKEZİ"])
-
 # ==============================================================================
-# 🟩 ANA SEKME 1 - VERİ GİRİŞİ PANELİ (ARTIK TAŞMAZ VE KIRILMAZ)
+# 🟩 ÜST KISIM - STOK GİRİŞ VE ÇIKIŞ FORMLARI (ALT ALTA GENİŞ)
 # ==============================================================================
-with ana_sekme1:
-    st.markdown("<br>", unsafe_allow_html=True)
+with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
+    g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
+    g_aciklama = st.text_input("Stok Açıklaması / Ürün Adı:", key="g_acik").strip()
+    g_tarih = st.text_input("Alınma Tarihi:", value=datetime.now().strftime("%d.%m.%Y"), key="g2")
+    g_firma = st.text_input("Hangi Firmadan Alındı:", key="g3")
+    g_adet = st.number_input("Alım Adeti:", min_value=1, step=1, key="g4")
     
-    with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
-        g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
-        g_aciklama = st.text_input("Stok Açıklaması / Ürün Adı:", key="g_acik").strip()
-        g_tarih = st.text_input("Alınma Tarihi:", value=datetime.now().strftime("%d.%m.%Y"), key="g2")
-        g_firma = st.text_input("Hangi Firmadan Alındı:", key="g3")
-        g_adet = st.number_input("Alım Adeti:", min_value=1, step=1, key="g4")
-        
-        if st.button(GIRIS_KAYDET_BUTON_METNI, key="btn_g_ekle"):
-            if g_kod and g_aciklama and g_firma:
-                conn = sqlite3.connect(DB_YOLU)
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO urunler (stok_kodu, aciklama) VALUES (?, ?)", (g_kod, g_aciklama))
-                cursor.execute("INSERT INTO girisler (stok_kodu, tarih, firma, adet) VALUES (?, ?, ?, ?)", (g_kod, g_tarih, g_firma, g_adet))
-                conn.commit()
-                conn.close()
-                st.success(f"**{g_kod}** veritabanına işlendi.")
-                st.rerun()
-            else:
-                st.error("Hata: Stok Kodu, Açıklama ve Firma alanları boş bırakılamaz.")
+    if st.button(GIRIS_KAYDET_BUTON_METNI, key="btn_g_ekle"):
+        if g_kod and g_aciklama and g_firma:
+            conn = sqlite3.connect(DB_YOLU)
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO urunler (stok_kodu, aciklama) VALUES (?, ?)", (g_kod, g_aciklama))
+            cursor.execute("INSERT INTO girisler (stok_kodu, tarih, firma, adet) VALUES (?, ?, ?, ?)", (g_kod, g_tarih, g_firma, g_adet))
+            conn.commit()
+            conn.close()
+            st.success(f"**{g_kod}** veritabanına işlendi.")
+            st.rerun()
+        else:
+            st.error("Hata: Stok Kodu, Açıklama ve Firma alanları boş bırakılamaz.")
 
-    with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
-        c_kod = st.text_input("Stok Kodu (Çıkış):", key="c1").strip().upper()
-        c_tarih = st.text_input("Teslim Tarihi:", value=datetime.now().strftime("%d.%m.%Y"), key="c2")
-        c_kime = st.text_input("Kime / Alıcı Kişi:", key="c3")
-        c_adet = st.number_input("Teslim Edilecek Adet:", min_value=1, step=1, key="c4")
-        
-        if st.button(CIKIS_KAYDET_BUTON_METNI, key="btn_c_dus"):
-            if c_kod and c_kime:
-                conn = sqlite3.connect(DB_YOLU)
-                cursor = conn.cursor()
-                
-                cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
-                res_g = cursor.fetchone()
-                toplam_giris = res_g if res_g is not None else 0
-                
-                cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
-                res_c = cursor.fetchone()
-                toplam_cikis = res_c if res_c is not None else 0
-                
-                kalan = toplam_giris - toplam_cikis
-                
-                if toplam_giris == 0:
-                    st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
-                elif c_adet > kalan:
-                    st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
-                else:
-                    cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
-                    conn.commit()
-                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
-                    conn.close()
+with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
+    c_kod = st.text_input("Stok Kodu (Çıkış):", key="c1").strip().upper()
+    c_tarih = st.text_input("Teslim Tarihi:", value=datetime.now().strftime("%d.%m.%Y"), key="c2")
+    c_kime = st.text_input("Kime / Alıcı Kişi:", key="c3")
+    c_adet = st.number_input("Teslim Edilecek Adet:", min_value=1, step=1, key="c4")
+    
+    if st.button(CIKIS_KAYDET_BUTON_METNI, key="btn_c_dus"):
+        if c_kod and c_kime:
+            conn = sqlite3.connect(DB_YOLU)
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
+            res_g = cursor.fetchone()
+            toplam_giris = res_g if res_g is not None else 0
+            
+            cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
+            res_c = cursor.fetchone()
+            toplam_cikis = res_c if res_c is not None else 0
+            
+            kalan = toplam_giris - toplam_cikis
+            
+            if toplam_giris == 0:
+                st.error("Hata: Bu stok kodu sistemde tanımlı değil.")
+            elif c_adet > kalan:
+                st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
+            else:
+                cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
+                conn.commit()
+                st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
+                conn.close()
+                st.rerun()
+            conn.close()
+        else:
+            st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
+
+# ==============================================================================
+# 📊 ALT KISIM - GELİŞMİŞ RAPORLAMA VE YÖNETİM MERKEZİ (TAM EKRAN GENİŞ)
+# ==============================================================================
+st.markdown("<hr style='border:2px solid #2c3e50;'>", unsafe_allow_html=True)
+st.header(YONETIM_UST_YAZI)
+
