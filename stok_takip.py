@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ (RENK VE YAZI AYARLARI)
+# 🎛️ GENEL KONTROL PANELİ
 # ==============================================================================
 PENCERE_ARKA_PLAN_RENK = "#314666"  
 KART_ARKA_PLAN_RENK     = "#315366"  
@@ -68,13 +68,13 @@ def veritabani_kur():
 veritabani_kur()
 
 # ==============================================================================
-# ARKA PLAN TASARIM MOTORU (CSS)
+# ARKA PLAN TASARIM MOTORU (YAZILARI CAM GİBİ OKUNUR YAPAR)
 # ==============================================================================
 st.set_page_config(page_title="Stok Takip Sistemi", layout="wide")
 
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: {PENCERE_ARKA_PLAN_RENK} !important; color: {ANA_YAZI_RENK} !important; font-family: '{ANA_YAZI_FONTU}' !important; font-size: {YAZI_BOYUTU_PIXER} !important; }}
+    .stApp {{ background-color: {PENCERE_ARKA_PLAN_RENK} !important; font-family: '{ANA_YAZI_FONTU}' !important; }}
     .ozel-ust-baslik {{ background-color: {ANA_BAZ_RENK}; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 25px; border-bottom: 4px solid #1a252f; }}
     .ozel-ust-baslik h1 {{ color: white !important; font-family: '{ANA_YAZI_FONTU}' !important; font-weight: bold; margin: 0; }}
     .stExpander {{ background-color: {KART_ARKA_PLAN_RENK} !important; border: 2px solid #e0e0e0; border-radius: 8px; }}
@@ -82,9 +82,11 @@ st.markdown(f"""
     button[key="btn_g_ekle"] {{ background-color: {GIRIS_BUTON_RENK} !important; }}
     button[key="btn_c_dus"] {{ background-color: {CIKIS_BUTON_RENK} !important; }}
     button[key="btn_silme_motoru"] {{ background-color: {SILME_BUTON_RENK} !important; }}
-    .stTextInput input, .stNumberInput input {{ color: {ANA_YAZI_RENK} !important; }}
     div[data-testid="stSidebar"] {{ background-color: #2c3e50 !important; }}
-    div[data-testid="stMarkdownContainer"] p {{ color: white !important; }}
+    
+    /* GÖRÜNMEZLİK SORUNUNU ÇÖZEN KRİTİK BEYAZ YAZI CSS'LERİ */
+    h1, h2, h3, h4, h5, h6, p, label, .stSlider, .stSubheader {{ color: #ffffff !important; }}
+    .stCaption, .stText {{ color: #e0e0e0 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -143,7 +145,7 @@ with st.sidebar:
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# 🟩 ÜST KISIM - STOK GİRİŞ VE ÇIKIŞ FORMLARI (ALT ALTA GENİŞ)
+# 🟩 ÜST KISIM - STOK GİRİŞ VE ÇIKIŞ FORMLARI
 # ==============================================================================
 with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
     g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
@@ -178,11 +180,11 @@ with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
             
             cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
             res_g = cursor.fetchone()
-            toplam_giris = res_g if res_g is not None else 0
+            toplam_giris = res_g[0] if res_g and res_g[0] is not None else 0
             
             cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
             res_c = cursor.fetchone()
-            toplam_cikis = res_c if res_c is not None else 0
+            toplam_cikis = res_c[0] if res_c and res_c[0] is not None else 0
             
             kalan = toplam_giris - toplam_cikis
             
@@ -201,8 +203,8 @@ with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
             st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
 # ==============================================================================
-# 📊 ALT KISIM - GELİŞMİŞ RAPORLAMA VE YÖNETİM MERKEZİ (TAM EKRAN GENİŞ)
+# 📊 ALT KISIM - GELİŞMİŞ RAPORLAMA VE YÖNETİM MERKEZİ (ARTIK GÖRÜNÜR)
 # ==============================================================================
 st.markdown("<hr style='border:2px solid #2c3e50;'>", unsafe_allow_html=True)
-st.header(YONETIM_UST_YAZI)
+st.subheader(YONETIM_UST_YAZI)
 
