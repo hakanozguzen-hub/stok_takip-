@@ -5,33 +5,28 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ (HER ŞEYE BURADAN MÜDAHALE EDEBİLİRSİNİZ)
+# 🎛️ GENEL KONTROL PANELİ
 # ==============================================================================
+PENCERE_ARKA_PLAN_RENK = "#314666"  
+KART_ARKA_PLAN_RENK     = "#315366"  
+ANA_BAZ_RENK            = "#2c3e50"  
+GIRIS_BUTON_RENK        = "#27ae60"  
+CIKIS_BUTON_RENK        = "#e74c3c"  
+SILME_BUTON_RENK        = "#c0392b"  
+ANA_YAZI_RENK           = "#333333"  
 
-# --- 🎨 RENK AYARLARI ---
-PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
-KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
-ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
-GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
-CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
-SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
-ANA_YAZI_RENK           = "#333333"  # Formların ve düz metinlerin ana yazı rengi
-
-# --- 📝 METİN VE YAZI AYARLARI ---
 PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
 GIRIS_PANEL_UST_YAZI    = "🟩 STOK GİRİŞİ (ALIM PANELİ)"
 CIKIS_PANEL_UST_YAZI   = "🟥 STOK ÇIKIŞI (TESLİMAT PANELİ)"
 TABLO_UST_YAZI          = "📊 Güncel Stok Durum Raporu"
 YONETIM_UST_YAZI        = "🔍 Gelişmiş Filtreleme ve Hareket Geçmişi Raporu"
 
-# --- 🔘 BUTON ÜZERİNDEKİ YAZILAR ---
 GIRIS_KAYDET_BUTON_METNI= "📥 STOK EKLE / SİSTEME GİRİŞ YAP"
 CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
 URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 
-# --- 📐 BOYUT VE FONT AYARLARI ---
-ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
-YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
+ANA_YAZI_FONTU          = "Arial"    
+YAZI_BOYUTU_PIXER       = "15px"     
 
 # ==============================================================================
 # 💾 SQLITE VERİTABANI MOTORU
@@ -88,11 +83,15 @@ st.markdown(f"""
     st-key-btn_c_dus button {{ background-color: {CIKIS_BUTON_RENK} !important; }}
     st-key-btn_silme_motoru button {{ background-color: {SILME_BUTON_RENK} !important; }}
     .stTextInput input, .stNumberInput input {{ color: {ANA_YAZI_RENK} !important; }}
+    div[data-testid="stSidebar"] {{ background-color: #2c3e50 !important; }}
+    /* Üst sekme başlıklarının rengini beyaz ve belirgin yapar */
+    button[data-testid="stMarkdownContainer"] p {{ color: white !important; }}
+    .stTabs [data-baseweb="tab"] p {{ color: white !important; font-weight: bold !important; font-size: 16px !important; }}
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🛡️ VERI KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
+# 🛡️ VERİ KORUMA PANELİ (SOL YAN MENÜ)
 # ==============================================================================
 with st.sidebar:
     st.markdown("## 🛡️ Mayra Park Veri Koruma")
@@ -142,16 +141,18 @@ with st.sidebar:
             except Exception as hata:
                 st.error(f"Yükleme başarısız oldu: {hata}")
 
-# Başlık şeridini ekrana yazdırır
+# Başlık Şeridi
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# EKRANI KESİN OLARAK YAN YANA İKİYE BÖLER
-sol_panel, sag_panel = st.columns(2)
+# EKRAN KAYMALARINI %100 ÖNLEYEN ÜST ANA SEKMELER
+ana_sekme1, ana_sekme2 = st.tabs(["📝 STOK GİRİŞ / ÇIKIŞ FORM PANELİ", "📊 CANLI RAPORLAR VE YÖNETİM MERKEZİ"])
 
 # ==============================================================================
-# 🟩 SOL PANEL - GİRİŞ VE ÇIKIŞ İŞLEMLERİ
+# 🟩 ANA SEKME 1 - VERİ GİRİŞİ PANELİ (ARTIK TAŞMAZ VE KIRILMAZ)
 # ==============================================================================
-with sol_panel:
+with ana_sekme1:
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     with st.expander(GIRIS_PANEL_UST_YAZI, expanded=True):
         g_kod = st.text_input("Stok Kodu (Giriş):", key="g1").strip().upper()
         g_aciklama = st.text_input("Stok Açıklaması / Ürün Adı:", key="g_acik").strip()
@@ -184,11 +185,11 @@ with sol_panel:
                 cursor = conn.cursor()
                 
                 cursor.execute("SELECT SUM(adet) FROM girisler WHERE stok_kodu=?", (c_kod,))
-                res_g = cursor.fetchone()[0]
+                res_g = cursor.fetchone()
                 toplam_giris = res_g if res_g is not None else 0
                 
                 cursor.execute("SELECT SUM(adet) FROM cikisler WHERE stok_kodu=?", (c_kod,))
-                res_c = cursor.fetchone()[0]
+                res_c = cursor.fetchone()
                 toplam_cikis = res_c if res_c is not None else 0
                 
                 kalan = toplam_giris - toplam_cikis
@@ -201,3 +202,4 @@ with sol_panel:
                     cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
                     conn.commit()
                     st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
+                    conn.close()
