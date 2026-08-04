@@ -95,49 +95,43 @@ with st.sidebar:
     st.markdown("## 🛡️ Mayra Park Veri Koruma")
     st.write("GitHub güncellemesi yapmadan önce yedek alın, güncelleme bitince yedeği yükleyin.")
     
-    try:
-        conn = sqlite3.connect(DB_YOLU)
-        u_df = pd.read_sql_query("SELECT * FROM urunler", conn)
-        g_df = pd.read_sql_query("SELECT * FROM girisler", conn)
-        c_df = pd.read_sql_query("SELECT * FROM cikisler", conn)
-        conn.close()
-        
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            u_df.to_excel(writer, sheet_name='Urunler', index=False)
-            g_df.to_excel(writer, sheet_name='Girisler', index=False)
-            c_df.to_excel(writer, sheet_name='Cikisler', index=False)
-        
-        st.download_button(
-            label="📥 Güncelleme Öncesi Verileri Yedekle",
-            data=output.getvalue(),
-            file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="btn_yedek_indir"
-        )
-    except Exception as e:
-        st.caption("Veritabanı başlatılıyor...")
+    conn = sqlite3.connect(DB_YOLU)
+    u_df = pd.read_sql_query("SELECT * FROM urunler", conn)
+    g_df = pd.read_sql_query("SELECT * FROM girisler", conn)
+    c_df = pd.read_sql_query("SELECT * FROM cikisler", conn)
+    conn.close()
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        u_df.to_excel(writer, sheet_name='Urunler', index=False)
+        g_df.to_excel(writer, sheet_name='Girisler', index=False)
+        c_df.to_excel(writer, sheet_name='Cikisler', index=False)
+    
+    st.download_button(
+        label="📥 Güncelleme Öncesi Verileri Yedekle",
+        data=output.getvalue(),
+        file_name=f"mayrapark_stok_yedek_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="btn_yedek_indir"
+    )
 
     st.markdown("---")
     
     yuklenen_dosya = st.file_uploader("📤 Güncelleme Sonrası Yedeği Yükle (.xlsx)", type=["xlsx"], key="yedek_sec")
     if yuklenen_dosya is not None:
         if st.button("⚙️ Eski Verileri Sisteme Geri Yükle", key="btn_yedek_yukle"):
-            try:
-                excel_u = pd.read_excel(yuklenen_dosya, sheet_name='Urunler')
-                excel_g = pd.read_excel(yuklenen_dosya, sheet_name='Girisler')
-                excel_c = pd.read_excel(yuklenen_dosya, sheet_name='Cikisler')
-                
-                conn = sqlite3.connect(DB_YOLU)
-                excel_u.to_sql('urunler', conn, if_exists='replace', index=False)
-                excel_g.to_sql('girisler', conn, if_exists='replace', index=False)
-                excel_c.to_sql('cikisler', conn, if_exists='replace', index=False)
-                conn.commit()
-                conn.close()
-                st.success("🎉 Tüm verileriniz başarıyla kurtarıldı!")
-                st.rerun()
-            except Exception as hata:
-                st.error(f"Yükleme başarısız oldu: {hata}")
+            excel_u = pd.read_excel(yuklenen_dosya, sheet_name='Urunler')
+            excel_g = pd.read_excel(yuklenen_dosya, sheet_name='Girisler')
+            excel_c = pd.read_excel(yuklenen_dosya, sheet_name='Cikisler')
+            
+            conn = sqlite3.connect(DB_YOLU)
+            excel_u.to_sql('urunler', conn, if_exists='replace', index=False)
+            excel_g.to_sql('girisler', conn, if_exists='replace', index=False)
+            excel_c.to_sql('cikisler', conn, if_exists='replace', index=False)
+            conn.commit()
+            conn.close()
+            st.success("🎉 Tüm verileriniz başarıyla kurtarıldı!")
+            st.rerun()
 
 # ==============================================================================
 # ANA PANEL BAŞLIĞI VE FORM ALANLARI
@@ -200,7 +194,7 @@ with st.expander(CIKIS_PANEL_UST_YAZI, expanded=True):
             st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
 # ==============================================================================
-# 📊 SAĞLAMLAŞTIRILMIŞ RAPORLAMA VE YÖNETİM MOTORU
+# 📊 RAPORLAMA VE YÖNETİM MOTORU
 # ==============================================================================
 st.markdown("---")
 st.subheader(YONETIM_UST_YAZI)
@@ -208,4 +202,13 @@ st.subheader(YONETIM_UST_YAZI)
 arama_sorgusu = st.text_input("🔍 Bulmak istediğiniz Stok Kodunu veya Stok İsmini yazın:", "").strip().lower()
 
 conn = sqlite3.connect(DB_YOLU)
-try:
+urunler_df = pd.read_sql_query("SELECT * FROM urunler", conn)
+girisler_df = pd.read_sql_query("SELECT * FROM girisler", conn)
+cikisler_df = pd.read_sql_query("SELECT * FROM cikisler", conn)
+
+stok_durumu = []
+
+for idx, row in urunler_df.iterrows():
+    skod = str(row['stok_kodu'])
+    aciklama = str(row['aciklama'])
+    
