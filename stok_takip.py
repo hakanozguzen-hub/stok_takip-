@@ -144,7 +144,6 @@ with st.sidebar:
 # ==============================================================================
 st.markdown(f'<div class="ozel-ust-baslik"><h1>{PROGRAM_ANA_BASLIGI}</h1></div>', unsafe_allow_html=True)
 
-# EKRANI KESİN OLARAK SOL VE SAĞ OLARAK İKİYE BÖLÜYORUZ
 sol_panel, sag_panel = st.columns(2)
 
 # ==============================================================================
@@ -204,3 +203,5 @@ with sol_panel:
                     st.rerun()
                 conn.close()
             else:
+                st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
+
