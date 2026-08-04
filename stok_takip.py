@@ -5,17 +5,17 @@ import io
 from datetime import datetime
 
 # ==============================================================================
-# 🎛️ GENEL KONTROL PANELİ (HER ŞEYE BURADAN MÜDAHALE EDEBİLİRSİNİZ)
+# 🎛️ GENEL KONTROL PANELİ
 # ==============================================================================
 
 # --- 🎨 RENK AYARLARI ---
-PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
-KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
-ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
-GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
-CIKIS_BUTON_RENK        = "#e74c3c"  # Stok Çıkış buton rengi
-SILME_BUTON_RENK        = "#c0392b"  # Ürün Silme butonu rengi
-ANA_YAZI_RENK           = "#333333"  # Formların ve düz metinlerin ana yazı rengi
+PENCERE_ARKA_PLAN_RENK = "#314666"  
+KART_ARKA_PLAN_RENK     = "#315366"  
+ANA_BAZ_RENK            = "#2c3e50"  
+GIRIS_BUTON_RENK        = "#27ae60"  
+CIKIS_BUTON_RENK        = "#e74c3c"  
+SILME_BUTON_RENK        = "#c0392b"  
+ANA_YAZI_RENK           = "#333333"  
 
 # --- 📝 METİN VE YAZI AYARLARI ---
 PROGRAM_ANA_BASLIGI     = "📦 MAYRA PARK Gelişmiş Stok Takip Sistemi"
@@ -30,8 +30,8 @@ CIKIS_KAYDET_BUTON_METNI= "📤 STOKTAN DÜŞ / TESLİMAT YAP"
 URUN_SIL_BUTON_METNI    = "🗑️ BU ÜRÜNÜ SİSTEMDEN KALICI OLARAK SİL"
 
 # --- 📐 BOYUT VE FONT AYARLARI ---
-ANA_YAZI_FONTU          = "Arial"    # Kullanılacak yazı tipi ailesi
-YAZI_BOYUTU_PIXER       = "15px"     # Form ve tablo içi yazıların boyutu
+ANA_YAZI_FONTU          = "Arial"    
+YAZI_BOYUTU_PIXER       = "15px"     
 
 # ==============================================================================
 # 💾 SQLITE VERİTABANI MOTORU
@@ -92,13 +92,12 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🛡️ YENİ: VERİ KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
+# 🛡️ VERI KORUMA VE YEDEKLENME PANELİ (SOL YAN MENÜ)
 # ==============================================================================
 with st.sidebar:
     st.markdown("## 🛡️ Veri Kaybını Önleme Paneli")
     st.info("GitHub güncellemesi yapmadan önce verilerinizi yedekleyin. Güncelleme sonrası buradan tekrar yükleyin.")
     
-    # 1. Excel Olarak Verileri İndirme Butonu
     try:
         conn = sqlite3.connect(DB_YOLU)
         u_df = pd.read_sql_query("SELECT * FROM urunler", conn)
@@ -123,7 +122,6 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 2. Excel Yedeğini Geri Yükleme Alanı
     yuklenen_dosya = st.file_uploader("📤 Güncelleme Sonrası Yedeği Yükle (.xlsx)", type=["xlsx"])
     if yuklenen_dosya is not None:
         if st.button("⚙️ Eski Verileri Sisteme Geri Yükle"):
@@ -133,7 +131,6 @@ with st.sidebar:
                 excel_c = pd.read_excel(yuklenen_dosya, sheet_name='Cikisler')
                 
                 conn = sqlite3.connect(DB_YOLU)
-                # Mevcut boş tabloları silip exceldekileri yazar
                 excel_u.to_sql('urunler', conn, if_exists='replace', index=False)
                 excel_g.to_sql('girisler', conn, if_exists='replace', index=False)
                 excel_c.to_sql('cikisler', conn, if_exists='replace', index=False)
@@ -201,3 +198,12 @@ with sol_panel:
                 elif c_adet > kalan:
                     st.error(f"Hata: Yetersiz stok! Mevcut kalan miktar: {kalan}")
                 else:
+                    cursor.execute("INSERT INTO cikisler (stok_kodu, tarih, kime, adet) VALUES (?, ?, ?, ?)", (c_kod, c_tarih, c_kime, c_adet))
+                    conn.commit()
+                    st.success(f"**{c_kod}** stok çıkış kaydı yapıldı.")
+                    conn.close()
+                    st.rerun()
+                conn.close()
+            else:
+                st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
+
