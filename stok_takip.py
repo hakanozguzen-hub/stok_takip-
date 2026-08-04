@@ -9,7 +9,7 @@ from datetime import datetime
 # ==============================================================================
 
 # --- 🎨 RENK AYARLARI ---
-PENCERE_ARKA_PLAN_RENK = "#314666"  # Ekranın genel arka plan rengi
+PENCERE_ARKA_PLAN_RENK = "#808080"  # Ekranın genel arka plan rengi
 KART_ARKA_PLAN_RENK     = "#315366"  # Form alanlarının ve kutuların içi
 ANA_BAZ_RENK            = "#2c3e50"  # Üst başlık şeridi ve detay butonlarının rengi
 GIRIS_BUTON_RENK        = "#27ae60"  # Stok Giriş buton rengi
