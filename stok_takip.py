@@ -180,7 +180,7 @@ with sol_panel:
                 st.error("Hata: Lütfen çıkış için gerekli tüm alanları doldurun.")
 
 # ==============================================================================
-# 📊 SAĞ PANEL - TÜM RAPORLAMA VE GELİŞMİŞ YÖNETİM MERKEZİ
+# 📊 SAĞ PANEL - TÜM RAPORLAMA VE YÖNETİM MOTORU
 # ==============================================================================
 with sag_panel:
     st.subheader(YONETIM_UST_YAZI)
@@ -219,7 +219,8 @@ with sag_panel:
     df_ozet = pd.DataFrame(stok_durumu)
     st.dataframe(df_ozet, use_container_width=True)
     
-    # Hata veren yarım kalan parantezler eksiksiz kapatıldı
     if len(stok_durumu) > 0:
         output_rapor = io.BytesIO()
         with pd.ExcelWriter(output_rapor, engine='xlsxwriter') as writer:
+            df_ozet.to_excel(writer, sheet_name='Stok_Durumu', index=False)
+        st.download_button(
