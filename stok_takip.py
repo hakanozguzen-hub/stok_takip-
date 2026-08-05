@@ -216,6 +216,7 @@ if "oturum_acildi" not in st.session_state:
 
 if not st.session_state["oturum_acildi"]:
     st.write("")
+    # 🔥 Sütunlar kaldırılarak o çok beğendiğiniz ferah orijinal kutu tasarımına tam olarak geri dönüldü
     st.markdown("<h2 style='text-align: center;'>📦 İŞYERİ STOK SİSTEMİ</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: gray;'>Lütfen devam etmek için giriş şifrenizi yazınız.</p>", unsafe_allow_html=True)
     
@@ -247,6 +248,3 @@ df_ana = stok_durumu_getir()
 col1, col2 = st.columns(2)
 if not df_ana.empty:
     col1.metric("Toplam Çeşidi", f"{len(df_ana)} Ürün")
-    col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
-else:
-    col1.metric("Toplam Çeşidi", "0 Ürün")
