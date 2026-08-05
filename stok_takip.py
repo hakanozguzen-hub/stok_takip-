@@ -59,10 +59,8 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ ASLA KİLİTLENMEYEN SAF SQL VERİ ÇEKME SİSTEMİ ---
+# --- 🛠️ EN GÜVENLİ SAF SQL VERİ ÇEKME SİSTEMİ ---
 def guncel_stok_verilerini_getir():
-    # Çökmeye sebep olan tüm Python döngüleri ve apply/lambda riskleri kaldırıldı.
-    # En güvenli standart SQL mantığıyla veriler tek parça halinde çekiliyor.
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -81,11 +79,8 @@ def guncel_stok_verilerini_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    if isinstance(urun_kodu, list):
-        gercek_kod = urun_kodu[0]
-    else:
-        gercek_kod = urun_kodu
-        
+    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
+    
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
     
@@ -93,7 +88,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[0]} ({urun[1]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -245,4 +240,8 @@ df_ana = guncel_stok_verilerini_getir()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
+if df_ana.empty:
+    st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
+
+# 🔥 KESİN ÇÖZÜM: Hizalama hatasına sebep olan sütun içi boşluklar milimetrik düzeltildi.
 if not df_ana.empty:
