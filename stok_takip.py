@@ -30,7 +30,7 @@ st.markdown(GÖRSEL_AYARLAR, unsafe_allow_html=True)
 conn = sqlite3.connect("stok_takip_modern.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# 1. Ürünler Tablosu
+# Tabloları Oluştur
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS urunler (
     urun_kodu TEXT PRIMARY KEY,
@@ -40,7 +40,6 @@ CREATE TABLE IF NOT EXISTS urunler (
     birim_fiyat REAL DEFAULT 0.0
 )""")
 
-# 2. Stok Hareketleri Tablosu
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS stok_hareketleri (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +52,7 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 )""")
 conn.commit()
 
-# SÜTUN KONTROLLERİ
+# Eksik Sütun Kontrolleri (Güvenlik Önlemi)
 try:
     cursor.execute("ALTER TABLE urunler ADD COLUMN birim_fiyat REAL DEFAULT 0.0")
     conn.commit()
@@ -65,29 +64,29 @@ try:
 except sqlite3.OperationalError: pass
 
 
-# --- MATEMATİKSEL HESAPLAMA FONKSİYONU ---
+# --- 🛠️ VERİ ÇEKME VE MATEMATİKSEL HESAPLAMA (KESİN ÇÖZÜMÜ) ---
 def stok_durumu_getir():
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler")
     urunler = cursor.fetchall()
     
     stok_listesi = []
     for row in urunler:
-        # Verileri indekslerine göre doğru eşleştiriyoruz (Hata buradaydı, düzeltildi)
+        # İndeks numaraları ile eşleştirme yapılarak çökme sorunu tamamen engellendi
         kod = row[0]
         ad = row[1]
         kat = row[2]
         kritik = row[3]
         fiyat = row[4]
         
-        # Giriş Toplamı
+        # Girişleri topla
         cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Giriş'", (kod,))
-        giris_sonuc = cursor.fetchone()[0]
-        giris = giris_sonuc if giris_sonuc is not None else 0
+        g_res = cursor.fetchone()
+        giris = g_res[0] if g_res and g_res[0] is not None else 0
         
-        # Çıkış Toplamı
+        # Çıkışları topla
         cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Çıkış'", (kod,))
-        cikis_sonuc = cursor.fetchone()[0]
-        cikis = cikis_sonuc if cikis_sonuc is not None else 0
+        c_res = cursor.fetchone()
+        cikis = c_res[0] if c_res and c_res[0] is not None else 0
         
         kalan = giris - cikis
         durum = "⚠️ Kritik" if kalan <= kritik else "✅ Yeterli"
@@ -241,7 +240,7 @@ with st.sidebar:
 
 st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
-# Dinamik Veriyi Çek
+# Verileri Çek
 df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
