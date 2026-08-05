@@ -15,7 +15,7 @@ st.set_page_config(
 GÖRSEL_AYARLAR = """
 <style>
     .stApp {
-        background-color: #f8f9fa;
+        background-color: #00000;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     h1, h2, h3 {
@@ -234,7 +234,7 @@ with st.sidebar:
     if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencere_stok_giris()
     if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
 
-st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
+st.title("📊 MAYRA PARK Stok & Cari Kontrol Paneli")
 
 df_ana = stok_durumu_getir()
 
