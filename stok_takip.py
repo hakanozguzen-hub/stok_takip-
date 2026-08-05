@@ -61,8 +61,7 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ SUNUCU ÖNBELLEĞİNİ KIRAN GÜVENLİ VERİ FONKSİYONU ---
-# Fonksiyon ismi 'guncel_stok_verilerini_getir' olarak yenilendi. Sunucu zorunlu olarak sıfırlanacak.
+# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def guncel_stok_verilerini_getir():
     try:
         sorgu = """
@@ -234,5 +233,6 @@ if not st.session_state["oturum_acildi"]:
     st.stop()
 
 
-# --- ANA PANEL ARABİRİMİ ---
+# --- ANA PANEL ARABİRİMİ (HİZALAMALAR TAMAMEN KONTROL EDİLDİ) ---
 with st.sidebar:
+    st.title("⚙️ İşlem Menüsü")
