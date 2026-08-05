@@ -12,8 +12,6 @@ st.set_page_config(
 )
 
 # --- 🎨 GÖRSEL TASARIM (CSS) ---
-# DÜZELTME: Butonları ve yazıları bozan tüm sidebar CSS kuralı temizlendi.
-# Sadece dialog penceresini ekrana sığacak şekilde büyüten kod bırakıldı.
 GÖRSEL_AYARLAR = """
 <style>
     .cari-baslik {
@@ -228,7 +226,6 @@ with st.sidebar:
     secilen_durum = st.selectbox("Stok Durum Filtresi", durumlar)
 
 # Verileri Filtrele ve Ana Ekranda Listele
-# DÜZELTME: Veritabanı boşsa artık ekranda hata vermez, düzgünce bilgi metni yazar.
 if not df_stok.empty:
     if secilen_kategori != "Tümü":
         df_stok = df_stok[df_stok["Kategori"] == secilen_kategori]
@@ -255,3 +252,4 @@ if not df_stok.empty:
         if st.button(f"🔍 {tiklanan_urun_kodu} Detay Penceresini Göster", type="primary", use_container_width=True):
             pencere_cari_kart(tiklanan_urun_kodu)
 else:
+    st.info("👋 Sistemde henüz kayıtlı ürün bulunmuyor. Sol menüdeki 'Yeni Ürün Tanımla' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
