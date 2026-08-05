@@ -22,8 +22,7 @@ GÖRSEL_AYARLAR = """
         color: #1e40af; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
-    
-    /* 📐 AÇILIR PENCERELERİN (POP-UP) GENİŞLİĞİNİ BURADAN PİKSEL OLARAK DEĞİŞTİREBİLİRSİNİZ */
+    /* 📐 Açılır pencerelerin genişliğini buradan piksel olarak değiştirebilirsiniz */
     [data-testid="stDialog"] div {
         max-width: 900px !important;
     }
@@ -60,28 +59,29 @@ conn.commit()
 
 # --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
+    # Çökmeyi engellemek için SQL sorgusunda sadece standart İngilizce sütun isimleri kullanıyoruz
     sorgu = """
     SELECT 
-        u.urun_kodu AS [Ürün Kodu],
-        u.urun_adi AS [Ürün Adı],
-        u.kategori AS [Kategori],
-        u.birim_fiyat AS [Birim Fiyat (TL)],
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
-        ((IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-          IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) * u.birim_fiyat) AS [Stok Değeri (TL)],
-        u.kritik_stok AS [Kritik Limit],
-        CASE 
-            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= u.kritik_stok 
-            THEN '⚠️ Kritik' 
-            ELSE '✅ Yeterli' 
-        END AS [Durum]
+        u.urun_kodu,
+        u.urun_adi,
+        u.kategori,
+        u.birim_fiyat,
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS toplam_giris,
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS toplam_cikis,
+        u.kritik_stok
     FROM urunler u
     """
-    return pd.read_sql_query(sorgu, conn)
+    df = pd.read_sql_query(sorgu, conn)
+    
+    # Hesaplamaları Python güvenle yapar
+    if not df.empty:
+        df["mevcut_stok"] = df["toplam_giris"] - df["toplam_cikis"]
+        df["stok_degeri"] = df["mevcut_stok"] * df["birim_fiyat"]
+        df["durum"] = df.apply(lambda r: "⚠️ Kritik" if r["mevcut_stok"] <= r["kritik_stok"] else "✅ Yeterli", axis=1)
+    else:
+        df = pd.DataFrame(columns=["urun_kodu", "urun_adi", "kategori", "birim_fiyat", "toplam_giris", "toplam_cikis", "kritik_stok", "mevcut_stok", "stok_degeri", "durum"])
+        
+    return df
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -164,7 +164,7 @@ def pencere_stok_giris():
     if df.empty:
         st.warning("Önce ürün eklemelisiniz.")
         return
-    secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
+    secilen = st.selectbox("Giriş Yapılacak Ürün", df["urun_kodu"] + " - " + df["urun_adi"])
     kod = secilen.split(" - ")[0]
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
@@ -185,11 +185,11 @@ def pencere_stok_cikis():
     if df.empty:
         st.warning("Ürün bulunamadı.")
         return
-    secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
+    secilen = st.selectbox("Çıkış Yapılacak Ürün", df["urun_kodu"] + " - " + df["urun_adi"])
     kod = secilen.split(" - ")[0]
     
-    mevcut_row = df[df["Ürün Kodu"] == kod]
-    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut_row = df[df["urun_kodu"] == kod]
+    mevcut = int(mevcut_row["mevcut_stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -222,11 +222,11 @@ df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
 if not df_ana.empty:
-    col1.metric("Toplam Çeşit", f"{len(df_ana)} Ürün")
-    col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
-    col3.metric("Toplam Depo Değeri", f"{df_ana['Stok Değeri (TL)'].sum():,.2f} TL")
+    col1.metric("Toplam Çeşidi", f"{len(df_ana)} Ürün")
+    col2.metric("Toplam Stok Adedi", f"{int(df_ana['mevcut_stok'].sum())} Adet")
+    col3.metric("Toplam Depo Değeri", f"{df_ana['stok_degeri'].sum():,.2f} TL")
 else:
-    col1.metric("Toplam Çeşit", "0 Ürün")
+    col1.metric("Toplam Çeşidi", "0 Ürün")
     col2.metric("Toplam Stok Adedi", "0 Adet")
     col3.metric("Toplam Depo Değeri", "0.00 TL")
 
@@ -234,4 +234,11 @@ st.divider()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
-# Hizalama hatasına sebep olan if-else bloğu tamamen temizlendi ve basitleştirildi
+# İnatçı çökme risklerini önlemek için tablo gösterimini ve seçimi tamamen bağımsızlaştırdık
+if not df_ana.empty:
+    col_alan, col_islem = st.columns(2)
+    with col_islem:
+        urun_secenekleri = df_ana["urun_kodu"] + " - " + df_ana["urun_adi"]
+        secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
+        if secilen_urun != "--- Cari Kart Seç ---":
+            secilen_kod = secilen_urun.split(" - ")[0]
