@@ -41,15 +41,9 @@ CREATE TABLE IF NOT EXISTS urunler (
     urun_kodu TEXT PRIMARY KEY,
     urun_adi TEXT,
     kategori TEXT,
-    kritik_stok INTEGER DEFAULT 5
+    kritik_stok INTEGER DEFAULT 5,
+    birim_fiyat REAL DEFAULT 0.0
 )""")
-
-# Eski veritabanları için birim fiyat koruması
-try:
-    cursor.execute("ALTER TABLE urunler ADD COLUMN birim_fiyat REAL DEFAULT 0.0")
-    conn.commit()
-except sqlite3.OperationalError:
-    pass
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS stok_hareketleri (
@@ -64,9 +58,10 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
+# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ (SQL SEVİYESİNDE HESAPLAMA) ---
 def stok_durumu_getir():
-    # Çökmeyi engellemek için tüm verileri en basit ve hatasız SQL yapısıyla çekiyoruz
+    # Python tarafında çökebilecek apply/lambda gibi hiçbir riskli döngü bırakmadık.
+    # Tüm hesaplamalar doğrudan SQL içinde tamamlanıyor.
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -75,34 +70,36 @@ def stok_durumu_getir():
         u.birim_fiyat AS [Birim Fiyat (TL)],
         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-        u.kritik_stok AS [Kritik Limit]
+        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+        ((IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+          IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) * u.birim_fiyat) AS [Stok Değeri (TL)],
+        u.kritik_stok AS [Kritik Limit],
+        CASE 
+            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= u.kritik_stok 
+            THEN '⚠️ Kritik' 
+            ELSE '✅ Yeterli' 
+        END AS [Durum]
     FROM urunler u
     """
-    df = pd.read_sql_query(sorgu, conn)
-    
-    if not df.empty:
-        # Tüm matematiksel hesaplamaları kilitlenmeyen Pandas hafızasında yapıyoruz
-        df["Mevcut Stok"] = df["Toplam Giriş"] - df["Toplam Çıkış"]
-        df["Stok Değeri (TL)"] = df["Mevcut Stok"] * df["Birim Fiyat (TL)"].fillna(0.0)
-        df["Durum"] = df.apply(lambda r: "⚠️ Kritik" if r["Mevcut Stok"] <= r["Kritik Limit"] else "✅ Yeterli", axis=1)
-        
-    return df
+    return pd.read_sql_query(sorgu, conn)
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    # Gelen veri liste ise ilk elemanını alarak string hatasını çözüyoruz
-    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
+    # Liste formatında gelen veriyi stringe dönüştürüyoruz
+    secilen_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
     
-    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
+    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler WHERE urun_kodu=?", (str(secilen_kod),))
     urun = cursor.fetchone()
     
     if not urun:
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -110,7 +107,7 @@ def pencere_cari_kart(urun_kodu):
         FROM stok_hareketleri 
         WHERE urun_kodu=? 
         ORDER BY id DESC
-    """, (str(gercek_kod),))
+    """, (str(secilen_kod),))
     gecmis = cursor.fetchall()
     
     if gecmis:
@@ -122,26 +119,26 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
-    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun[4] if urun[4] is not None else 0.0), min_value=0.0, step=0.5)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun if urun is not None else 0.0), min_value=0.0, step=0.5)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("💾 Değişiklikleri Kaydet", use_container_width=True, type="primary"):
             cursor.execute("""
                 UPDATE urunler SET urun_adi=?, kategori=?, kritik_stok=?, birim_fiyat=? WHERE urun_kodu=?
-            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, yeni_fiyat, str(gercek_kod)))
+            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, yeni_fiyat, str(secilen_kod)))
             conn.commit()
             st.success("Cari kart başarıyla güncellendi!")
             st.rerun()
             
     with col_btn2:
         if st.button("🗑️ Ürün Kartını Sistemden Sil", use_container_width=True):
-            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
-            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod),))
+            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(secilen_kod),))
+            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(secilen_kod),))
             conn.commit()
             st.warning("Ürün ve tüm geçmiş silindi!")
             st.rerun()
@@ -174,7 +171,7 @@ def pencere_stok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -195,10 +192,10 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -233,14 +230,3 @@ col1, col2, col3 = st.columns(3)
 if not df_ana.empty:
     col1.metric("Toplam Çeşidi", f"{len(df_ana)} Ürün")
     col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
-    col3.metric("Toplam Depo Değeri", f"{df_ana['Stok Değeri (TL)'].sum():,.2f} TL")
-else:
-    col1.metric("Toplam Çeşidi", "0 Ürün")
-    col2.metric("Toplam Stok Adedi", "0 Adet")
-    col3.metric("Toplam Depo Değeri", "0.00 TL")
-
-st.divider()
-
-st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
-
-# Hizalama riski taşıyan tüm tehlikeli boş else blokları tamamen kaldırıldı
