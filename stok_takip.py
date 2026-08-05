@@ -15,15 +15,17 @@ st.set_page_config(
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
-    h1, h2, h3 { color: #2c3e50 !important; font-weight: 1000 !important; }
+    h1, h2, h3 { color: #2c3e50 !important; font-weight: 700 !important; }
     [data-testid="stSidebar"] { background-color: #1e293b !important; }
     [data-testid="stSidebar"] ***, [data-testid="stSidebar"] p { color: #f8fafc !important; }
     .cari-baslik {
         color: #1e40af; font-size: 24px; font-weight: bold;
-        border-bottom: 5px solid #3b82f6; padding-bottom: 30px; margin-bottom: 30px;
+        border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
+    
+    /* 📐 PENCERE GENİŞLİK AYARI (DAHA GENİŞ YAPILDI) */
     [data-testid="stDialog"] div {
-        max-width: 2500px !important;
+        max-width: 1200px !important; /* Ekranı kaplaması için 1200px veya 95% yapabilirsiniz */
     }
 </style>
 """
@@ -58,7 +60,6 @@ conn.commit()
 
 # --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
-    # Çökmeyi engellemek için SQL sorgusunda sadece standart İngilizce sütun isimleri kullanıyoruz
     sorgu = """
     SELECT 
         u.urun_kodu,
@@ -187,7 +188,7 @@ def pencere_stok_cikis():
     kod = secilen.split(" - ")[0]
     
     mevcut_row = df[df["urun_kodu"] == kod]
-    mevcut = int(mevcut_row["mevcut_stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["mevcut_stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -245,3 +246,6 @@ if not df_ana.empty:
 
     st.write("")
     
+    st.dataframe(
+        df_ana,
+        use_container_width=True,
