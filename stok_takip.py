@@ -23,9 +23,9 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 İSTEDİĞİNİZ DEVA LA PENCERE GENİŞLİK AYARI BURASIDIR */
+    /* 📐 İSTEDİĞİNİZ DEVALA PENCERE GENİŞLİK AYARI (1400px YAPILDI) */
     [data-testid="stDialog"] div {
-        max-width: 1200px !important;
+        max-width: 1400px !important;
     }
 </style>
 """
@@ -229,7 +229,6 @@ st.divider()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
-# Hizalama hatasına yol açan tüm tehlikeli boş else blokları tamamen kaldırıldı
 if df_ana.empty:
     st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
 
