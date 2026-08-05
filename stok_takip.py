@@ -15,7 +15,7 @@ st.set_page_config(
 GÖRSEL_AYARLAR = """
 <style>
     .stApp {
-        background-color: #00000;
+        background-color: # 908f8f;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     h1, h2, h3 {
