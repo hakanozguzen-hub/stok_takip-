@@ -26,8 +26,6 @@ GÖRSEL_AYARLAR = """
         color: #1e40af; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
-    
-    /* 📐 SADECE AÇILIR PENCERE BOYUTU 1400px YAPILDI */
     [data-testid="stDialog"] div {
         max-width: 1400px !important;
     }
@@ -78,19 +76,20 @@ def guncel_stok_verilerini_getir():
         u.birim_fiyat AS [Birim Fiyat (TL)],
         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-        u.kritik_stok AS [Kritik Limit]
+        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+        ((IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+          IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) * IFNULL(u.birim_fiyat, 0.0)) AS [Stok Değeri (TL)],
+        u.kritik_stok AS [Kritik Limit],
+        CASE 
+            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= IFNULL(u.kritik_stok, 5) 
+            THEN '⚠️ Kritik' 
+            ELSE '✅ Yeterli' 
+        END AS [Durum]
     FROM urunler u
     """
-    df = pd.read_sql_query(sorgu, conn)
-    
-    if not df.empty:
-        df["Mevcut Stok"] = df["Toplam Giriş"] - df["Toplam Çıkış"]
-        df["Stok Değeri (TL)"] = df["Mevcut Stok"] * df["Birim Fiyat (TL)"].fillna(0.0)
-        df["Durum"] = df.apply(lambda r: "⚠️ Kritik" if r["Mevcut Stok"] <= r["Kritik Limit"] else "✅ Yeterli", axis=1)
-    else:
-        df = pd.DataFrame(columns=["Ürün Kodu", "Ürün Adı", "Kategori", "Birim Fiyat (TL)", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Stok Değeri (TL)", "Kritik Limit", "Durum"])
-        
-    return df
+    return pd.read_sql_query(sorgu, conn)
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -231,15 +230,3 @@ if not st.session_state["oturum_acildi"]:
     st.markdown("<p style='text-align: center; color: gray;'>Lütfen devam etmek için giriş şifrenizi yazınız.</p>", unsafe_allow_html=True)
     
     sifre_input = st.text_input("Giriş Şifresi", type="password", placeholder="Şifrenizi girin...")
-    if st.button("Sisteme Giriş Yap", use_container_width=True, type="primary"):
-        if sifre_input == GIRIS_SIFRESI:
-            st.session_state["oturum_acildi"] = True
-            st.rerun()
-        else:
-            st.error("❌ Hatalı şifre girdiniz! Lütfen tekrar deneyin.")
-    st.stop()
-
-
-# --- ANA PANEL ARABİRİMİ ---
-with st.sidebar:
-    st.title("⚙️ İşlem Menüsü")
