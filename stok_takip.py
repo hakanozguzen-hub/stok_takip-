@@ -173,7 +173,7 @@ def pencere_stok_giris():
     
     if st.button("Girişi Onayla", use_container_width=True, type="primary"):
         cursor.execute("""
-            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, text, aciklama, cari_unvan) 
+            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
         """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
@@ -202,7 +202,7 @@ def pencere_stok_cikis():
         
     if st.button("Çıkışı Onayla", use_container_width=True, type="primary"):
         cursor.execute("""
-            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, text, aciklama, cari_unvan) 
+            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
         """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
@@ -214,22 +214,18 @@ if "oturum_acildi" not in st.session_state:
     st.session_state["oturum_acildi"] = False
 
 if not st.session_state["oturum_acildi"]:
+    # 🔥 Orijinal ferah ve geniş ekran düzenine tamamen geri dönüldü
     st.write("")
-    st.write("")
-    st.write("")
-    # 🔥 Sütun oranları [1, 2, 1] yapılarak ortadaki şifre kutusu ve buton genişletildi, hizalandı
-    col_bos1, col_giriş, col_bos2 = st.columns([1, 2, 1])
-    with col_giriş:
-        st.markdown("<h2 style='text-align: center;'>📦 İŞYERİ STOK SİSTEMİ</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Lütfen devam etmek için giriş şifrenizi yazınız.</p>", unsafe_allow_html=True)
-        
-        sifre_input = st.text_input("Giriş Şifresi", type="password", placeholder="Şifrenizi girin...")
-        if st.button("Sisteme Giriş Yap", use_container_width=True, type="primary"):
-            if sifre_input == GIRIS_SIFRESI:
-                st.session_state["oturum_acildi"] = True
-                st.rerun()
-            else:
-                st.error("❌ Hatalı şifre girdiniz! Lütfen tekrar deneyin.")
+    st.markdown("<h2 style='text-align: center;'>📦 İŞYERİ STOK SİSTEMİ</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: gray;'>Lütfen devam etmek için giriş şifrenizi yazınız.</p>", unsafe_allow_html=True)
+    
+    sifre_input = st.text_input("Giriş Şifresi", type="password", placeholder="Şifrenizi girin...")
+    if st.button("Sisteme Giriş Yap", use_container_width=True, type="primary"):
+        if sifre_input == GIRIS_SIFRESI:
+            st.session_state["oturum_acildi"] = True
+            st.rerun()
+        else:
+            st.error("❌ Hatalı şifre girdiniz! Lütfen tekrar deneyin.")
     st.stop()
 
 
@@ -237,7 +233,7 @@ if not st.session_state["oturum_acildi"]:
 with st.sidebar:
     st.title("⚙️ İşlem Menüsü")
     if st.button("🆕 YENİ ÜRÜN KARTİ", use_container_width=True): pencere_urun_ekle()
-    if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencere_stok_giriş()
+    if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencere_stok_giris()
     if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
     st.divider()
     if st.button("🔒 Güvenli Çıkış Yap", use_container_width=True):
@@ -248,3 +244,8 @@ st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
 df_ana = stok_durumu_getir()
 
+col1, col2 = st.columns(2)
+if not df_ana.empty:
+    col1.metric("Toplam Çeşidi", f"{len(df_ana)} Ürün")
+    col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
+else:
