@@ -158,7 +158,7 @@ def pencerestok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -179,7 +179,7 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
     mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
@@ -240,8 +240,8 @@ df_ana = guncel_stok_verilerini_getir()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
-if df_ana.empty:
-    st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
+# 🔥 KESİN ÇÖZÜM: Girinti hatası üreten tüm if-else kalıpları yıkıldı.
+# Kodlar düz ve bağımsız bir sırayla ekrana basılıyor.
+col_islem, col_excel = st.columns(2)
 
-# 🔥 KESİN ÇÖZÜM: Hizalama hatasına sebep olan sütun içi boşluklar milimetrik düzeltildi.
-if not df_ana.empty:
+with col_islem:
