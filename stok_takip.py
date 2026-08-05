@@ -59,27 +59,40 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
+# --- 🛠️ KİLİTLENMEYEN EN İLKEL VE SAĞLAM VERI ÇEKME ALTYAPISI ---
 def guncel_stok_verilerini_getir():
-    sorgu = """
-    SELECT 
-        u.urun_kodu AS [Ürün Kodu],
-        u.urun_adi AS [Ürün Adı],
-        u.kategori AS [Kategori],
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
-        u.kritik_stok AS [Kritik Limit],
-        CASE 
-            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= IFNULL(u.kritik_stok, 5) 
-            THEN '⚠️ Kritik' 
-            ELSE '✅ Yeterli' 
-        END AS [Durum]
-    FROM urunler u
-    """
-    return pd.read_sql_query(sorgu, conn)
+    # Çökmeye sebep olan Pandas SQL okuyucusunu tamamen devredışı bıraktık.
+    # Verileri ham Python listesi olarak çekip kilitleri tamamen kırıyoruz.
+    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler")
+    urunler = cursor.fetchall()
+    
+    stok_listesi = []
+    for row in urunler:
+        kod = row[0]
+        ad = row[1]
+        kat = row[2]
+        kritik = row[3] if row[3] is not None else 5
+        
+        # Giriş miktarlarını el ile topla
+        cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Giriş'", (kod,))
+        g_res = cursor.fetchone()
+        giris = g_res[0] if g_res and g_res[0] is not None else 0
+        
+        # Çıkış miktarlarını el ile topla
+        cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Çıkış'", (kod,))
+        c_res = cursor.fetchone()
+        cikis = c_res[0] if c_res and c_res[0] is not None else 0
+        
+        kalan = giris - cikis
+        durum = "⚠️ Kritik" if kalan <= kritik else "✅ Yeterli"
+        
+        stok_listesi.append([kod, ad, kat, giris, cikis, kalan, kritik, durum])
+        
+    # Sadece en son aşamada, ekrana basmak için basit bir tablo oluşturuyoruz
+    df = pd.DataFrame(stok_listesi, columns=[
+        "Ürün Kodu", "Ürün Adı", "Kategori", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Kritik Limit", "Durum"
+    ])
+    return df
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -94,7 +107,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -114,10 +127,10 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -164,7 +177,7 @@ def pencerestok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -172,7 +185,7 @@ def pencerestok_giris():
     
     if st.button("Girişi Onayla", use_container_width=True, type="primary"):
         cursor.execute("""
-            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, text, aciklama, cari_unvan) 
+            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
         """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
@@ -185,10 +198,10 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -201,7 +214,7 @@ def pencere_stok_cikis():
         
     if st.button("Çıkışı Onayla", use_container_width=True, type="primary"):
         cursor.execute("""
-            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, text, aciklama, cari_unvan) 
+            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
         """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
@@ -232,13 +245,3 @@ with st.sidebar:
     st.title("⚙️ İşlem Menüsü")
     if st.button("🆕 YENİ ÜRÜN KARTİ", use_container_width=True): pencere_urun_ekle()
     if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencerestok_giris()
-    if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
-    st.divider()
-    if st.button("🔒 Güvenli Çıkış Yap", use_container_width=True):
-        st.session_state["oturum_acildi"] = False
-        st.rerun()
-
-st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
-st.divider()
-
-# Verileri çekiyoruz
