@@ -22,8 +22,6 @@ GÖRSEL_AYARLAR = """
         color: #1e40af; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
-    
-    /* 📐 Açılır pencerelerin genişliğini buradan piksel olarak değiştirebilirsiniz */
     [data-testid="stDialog"] div {
         max-width: 900px !important;
     }
@@ -93,7 +91,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -113,11 +111,11 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
-    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun[4] if urun[4] is not None else 0.0), min_value=0.0, step=0.5)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun if urun is not None else 0.0), min_value=0.0, step=0.5)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -164,7 +162,7 @@ def pencere_stok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["urun_kodu"] + " - " + df["urun_adi"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -185,10 +183,10 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["urun_kodu"] + " - " + df["urun_adi"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     mevcut_row = df[df["urun_kodu"] == kod]
-    mevcut = int(mevcut_row["mevcut_stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["mevcut_stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -239,7 +237,13 @@ if not df_ana.empty:
         urun_secenekleri = df_ana["urun_kodu"] + " - " + df_ana["urun_adi"]
         secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
         
-        # 🔥 Pop-up açılmasını tetikleyen güvenli buton eklendi
+        # Hizalama hatasına (IndentationError) yol açan tüm iç içe if yapıları temizlendi
         if secilen_urun != "--- Cari Kart Seç ---":
-            secilen_kod = secilen_urun.split(" - ")[0]
-            if st.button("🔍 SEÇİLEN ÜRÜNÜN CARİ KARTINI AÇ", use_container_width=True, type="primary"):
+            secilen_kod = secilen_urun.split(" - ")
+            st.button("🔍 CARİ KART PENCERESİNİ AÇ", use_container_width=True, type="primary", on_click=pencere_cari_kart, args=(secilen_kod,))
+
+    st.write("")
+    
+    st.dataframe(
+        df_ana,
+        use_container_width=True,
