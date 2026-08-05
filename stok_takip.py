@@ -20,7 +20,7 @@ GÖRSEL_AYARLAR = """
     [data-testid="stSidebar"] ***, [data-testid="stSidebar"] p { color: #f8fafc !important; }
     .cari-baslik {
         color: #1e40af; font-size: 24px; font-weight: bold;
-        border-bottom: 3px solid #3b82f6; padding-bottom: 30px; margin-bottom: 30px;
+        border-bottom: 5px solid #3b82f6; padding-bottom: 30px; margin-bottom: 30px;
     }
     [data-testid="stDialog"] div {
         max-width: 900px !important;
