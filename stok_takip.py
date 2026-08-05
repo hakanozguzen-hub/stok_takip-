@@ -27,7 +27,7 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 PENCERE GENİŞLİK AYARI (1400px) */
+    /* 📐 AÇILIR PENCERELERİN GENİŞLİK AYARI (1400px) */
     [data-testid="stDialog"] div {
         max-width: 1400px !important;
     }
@@ -61,10 +61,10 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
-def stok_durumu_getir():
+# --- 🛠️ SUNUCU ÖNBELLEĞİNİ KIRAN GÜVENLİ VERİ FONKSİYONU ---
+# Fonksiyon ismi 'guncel_stok_verilerini_getir' olarak yenilendi. Sunucu zorunlu olarak sıfırlanacak.
+def guncel_stok_verilerini_getir():
     try:
-        # Hesaplamalar doğrudan SQL içinde tamamlanıyor.
         sorgu = """
         SELECT 
             u.urun_kodu AS [Ürün Kodu],
@@ -85,8 +85,7 @@ def stok_durumu_getir():
         """
         return pd.read_sql_query(sorgu, conn)
     except Exception as e:
-        # Eğer SQL çökerse ekranı beyaz bırakma, hatayı buraya yazdır
-        st.error(f"Veritabanı Okuma Hatası: {str(e)}")
+        st.error(f"Veritabanı Bağlantı Hatası: {str(e)}")
         return pd.DataFrame(columns=["Ürün Kodu", "Ürün Adı", "Kategori", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Kritik Limit", "Durum"])
 
 
@@ -102,7 +101,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -122,10 +121,10 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -167,12 +166,12 @@ def pencere_urun_ekle():
 
 @st.dialog("📥 Stok Girişi (Mal Alımı)")
 def pencere_stok_giris():
-    df = stok_durumu_getir()
+    df = guncel_stok_verilerini_getir()
     if df.empty:
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -188,15 +187,15 @@ def pencere_stok_giris():
 
 @st.dialog("📤 Stok Çıkışı (Teslimat / Satış)")
 def pencere_stok_cikis():
-    df = stok_durumu_getir()
+    df = guncel_stok_verilerini_getir()
     if df.empty:
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -237,4 +236,3 @@ if not st.session_state["oturum_acildi"]:
 
 # --- ANA PANEL ARABİRİMİ ---
 with st.sidebar:
-    st.title("⚙️ İşlem Menüsü")
