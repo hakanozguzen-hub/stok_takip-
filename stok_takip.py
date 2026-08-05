@@ -84,7 +84,7 @@ def stok_durumu_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
+    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
     
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
@@ -126,6 +126,8 @@ def pencere_cari_kart(urun_kodu):
             """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(gercek_kod)))
             conn.commit()
             st.success("Cari kart başarıyla güncellendi!")
+            # URL temizleme ve yenileme
+            st.query_params.clear()
             st.rerun()
             
     with col_btn2:
@@ -134,6 +136,8 @@ def pencere_cari_kart(urun_kodu):
             cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod),))
             conn.commit()
             st.warning("Ürün ve tüm geçmiş silindi!")
+            # URL temizleme ve yenileme
+            st.query_params.clear()
             st.rerun()
 
 
@@ -210,6 +214,14 @@ def pencere_stok_cikis():
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 Detaylı Cari & Stok Yönetim Paneli")
 
+# Tıklama Yakalama Kontrolü (Sayfa başında link tıklamasını dinler)
+query_params = st.query_params
+if "detay_kod" in query_params:
+    secilen_kod = query_params["detay_kod"]
+    # Parametreyi hemen temizliyoruz ki pencere kapandığında sonsuz döngüye girmesin
+    st.query_params.clear()
+    pencere_cari_kart(secilen_kod)
+
 # Sol Panel (Sidebar) Butonları
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
@@ -223,7 +235,6 @@ with st.sidebar:
     st.divider()
     st.markdown("### 📊 Filtreleme Seçenekleri")
     
-    # Kategori ve Durum Filtreleri
     df_stok = stok_durumu_getir()
     kategoriler = ["Tümü"] + list(df_stok["Kategori"].unique()) if not df_stok.empty else ["Tümü"]
     secilen_kategori = st.selectbox("Kategori Filtresi", kategoriler)
@@ -239,15 +250,3 @@ if not df_stok.empty:
         df_stok = df_stok[df_stok["Durum"] == secilen_durum]
 
     st.subheader("📋 Güncel Stok Kartları Listesi")
-    st.caption("💡 Ürünün detaylı cari hareket dökümünü görmek ve düzenlemek için yanındaki kutucuğu seçip 'Cari Kart Detayını Aç' butonuna tıklayın.")
-    
-    # Seçim Yapılabilen Dataframe (Tablo)
-    tablo_secim = st.dataframe(
-        df_stok,
-        use_container_width=True,
-        hide_index=True,
-        on_select="rerun",
-        selection_mode="single-row"
-    )
-    
-    # Seçilen satır kontrolü ve Cari Kart buton tetikleyicisi
