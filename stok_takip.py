@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🎨 GÖRSEL TASARIM VE PENCERE ÖLÇÜ AYARLARI (CSS) ---
+# --- 🎨 GÖRSEL TASARIM VE KESİN PENCERE BÜYÜTME AYARLARI (CSS) ---
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -23,9 +23,10 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 SADECE AÇILIR PENCERE BOYUTU GENİŞLETİLDİ - BAŞKA HİÇBİR ŞEYE DOKUNULMADI */
-    [data-testid="stDialog"] div {
+    /* 📐 KESİN ÇÖZÜM: ESKİ KALIBI BOZMADAN SADECE PENCEREYİ DIŞA DOĞRU DEVASA GENİŞLETİR */
+    div[data-testid="stDialog"] > div {
         max-width: 1400px !important;
+        width: 85vw !important;
     }
 </style>
 """
@@ -83,10 +84,9 @@ def stok_durumu_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    # Gelen veri liste ise ilk elemanını alarak veritabanıyla eşleştiriyoruz
     gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
     
-    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod).strip(),))
+    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
     
     if not urun:
@@ -101,7 +101,7 @@ def pencere_cari_kart(urun_kodu):
         FROM stok_hareketleri 
         WHERE urun_kodu=? 
         ORDER BY id DESC
-    """, (str(gercek_kod).strip(),))
+    """, (str(gercek_kod),))
     gecmis = cursor.fetchall()
     
     if gecmis:
@@ -123,15 +123,15 @@ def pencere_cari_kart(urun_kodu):
         if st.button("💾 Değişiklikleri Kaydet", use_container_width=True, type="primary"):
             cursor.execute("""
                 UPDATE urunler SET urun_adi=?, kategori=?, kritik_stok=? WHERE urun_kodu=?
-            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(gercek_kod).strip()))
+            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(gercek_kod)))
             conn.commit()
             st.success("Cari kart başarıyla güncellendi!")
             st.rerun()
             
     with col_btn2:
         if st.button("🗑️ Ürün Kartını Sistemden Sil", use_container_width=True):
-            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(gercek_kod).strip(),))
-            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod).strip(),))
+            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
+            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod),))
             conn.commit()
             st.warning("Ürün ve tüm geçmiş silindi!")
             st.rerun()
@@ -173,7 +173,7 @@ def pencere_stok_giris():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
-        """, (str(kod[0]).strip(), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
+        """, (str(kod[0]), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -186,7 +186,7 @@ def pencere_stok_cikis():
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
     kod = secilen.split(" - ")
     
-    mevcut_row = df[df["Ürün Kodu"] == str(kod[0]).strip()]
+    mevcut_row = df[df["Ürün Kodu"] == str(kod[0])]
     mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
@@ -202,7 +202,7 @@ def pencere_stok_cikis():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
-        """, (str(kod[0]).strip(), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
+        """, (str(kod[0]), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -245,3 +245,4 @@ if not df_ana.empty:
                 pencere_cari_kart(secilen_kod)
 
     st.write("")
+    st.dataframe(df_ana, use_container_width=True, hide_index=True)
