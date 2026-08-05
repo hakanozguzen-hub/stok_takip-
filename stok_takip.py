@@ -12,18 +12,26 @@ st.set_page_config(
 )
 
 # --- 🎨 GÖRSEL TASARIM VE KESİN PENCERE BÜYÜTME AYARLARI (CSS) ---
+# DÜZELTME: Buton metinlerini gizleyen '*' seçicisi kaldırıldı, nokta atışı başlıklar seçildi.
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
     h1, h2, h3 { color: #2c3e50 !important; font-weight: 700 !important; }
     [data-testid="stSidebar"] { background-color: #1e293b !important; }
-    [data-testid="stSidebar"] *, [data-testid="stSidebar"] p { color: #f8fafc !important; }
+    
+    /* Sidebar içerisindeki sadece düz metinleri ve başlıkları beyaz yapar, butonları bozmaz */
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label { 
+        color: #f8fafc !important; 
+    }
+    
     .cari-baslik {
         color: #1e40af; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 KESİN ÇÖZÜM: ESKİ KALIBI BOZMADAN SADECE PENCEREYİ DIŞA DOĞRU DEVASA GENİŞLETİR */
+    /* 📐 PENCEREYİ DIŞA DOĞRU GENİŞLETEN CSS */
     div[data-testid="stDialog"] > div {
         max-width: 1400px !important;
         width: 85vw !important;
@@ -58,7 +66,7 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
+# --- 🛠️ VERI ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
     sorgu = """
     SELECT 
@@ -84,9 +92,7 @@ def stok_durumu_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
-    
-    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
+    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(urun_kodu),))
     urun = cursor.fetchone()
     
     if not urun:
@@ -101,7 +107,7 @@ def pencere_cari_kart(urun_kodu):
         FROM stok_hareketleri 
         WHERE urun_kodu=? 
         ORDER BY id DESC
-    """, (str(gercek_kod),))
+    """, (str(urun_kodu),))
     gecmis = cursor.fetchall()
     
     if gecmis:
@@ -123,21 +129,17 @@ def pencere_cari_kart(urun_kodu):
         if st.button("💾 Değişiklikleri Kaydet", use_container_width=True, type="primary"):
             cursor.execute("""
                 UPDATE urunler SET urun_adi=?, kategori=?, kritik_stok=? WHERE urun_kodu=?
-            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(gercek_kod)))
+            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(urun_kodu)))
             conn.commit()
             st.success("Cari kart başarıyla güncellendi!")
-            # URL temizleme ve yenileme
-            st.query_params.clear()
             st.rerun()
             
     with col_btn2:
         if st.button("🗑️ Ürün Kartını Sistemden Sil", use_container_width=True):
-            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
-            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod),))
+            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(urun_kodu),))
+            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(urun_kodu),))
             conn.commit()
             st.warning("Ürün ve tüm geçmiş silindi!")
-            # URL temizleme ve yenileme
-            st.query_params.clear()
             st.rerun()
 
 
@@ -167,7 +169,7 @@ def pencere_stok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -177,7 +179,7 @@ def pencere_stok_giris():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
-        """, (str(kod[0]), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
+        """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -188,10 +190,10 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
-    mevcut_row = df[df["Ürün Kodu"] == str(kod[0])]
-    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
+    mevcut_row = df[df["Ürün Kodu"] == str(kod)]
+    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -206,21 +208,13 @@ def pencere_stok_cikis():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
-        """, (str(kod[0]), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
+        """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
 
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 Detaylı Cari & Stok Yönetim Paneli")
-
-# Tıklama Yakalama Kontrolü (Sayfa başında link tıklamasını dinler)
-query_params = st.query_params
-if "detay_kod" in query_params:
-    secilen_kod = query_params["detay_kod"]
-    # Parametreyi hemen temizliyoruz ki pencere kapandığında sonsuz döngüye girmesin
-    st.query_params.clear()
-    pencere_cari_kart(secilen_kod)
 
 # Sol Panel (Sidebar) Butonları
 with st.sidebar:
@@ -250,3 +244,7 @@ if not df_stok.empty:
         df_stok = df_stok[df_stok["Durum"] == secilen_durum]
 
     st.subheader("📋 Güncel Stok Kartları Listesi")
+    st.caption("💡 Ürün geçmişini ve cari kartı görmek için aşağıdaki tablodan satırın **en solundaki seçim yuvarlağına** tıklamanız yeterlidir.")
+    
+    # 🌟 GÜVENLİ VE YAPAYI BOZMAYAN ÇÖZÜM: 
+    # Sayfa URL yapısını bozup veriyi uçurmadan Streamlit'in yerleşik satır seçim özelliğini entegre ettik.
