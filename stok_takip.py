@@ -240,6 +240,7 @@ df_ana = guncel_stok_verilerini_getir()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
-# 🔥 KESİN ÇÖZÜM: Girinti hatası üreten tüm yan yana sütun (with col:) yapıları temizlendi.
-# Elemanlar alt alta hatasız ve yalın şekilde dizildi.
-urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"] if not df_ana.empty else []
+# 🔥 YENİLİK: Veritabanı boşken ekranda ne yapılması gerektiğini söyleyen güvenli bilgi alanı geri getirildi.
+if df_ana.empty:
+    st.info("💡 Sistemde henüz hiçbir ürün kartı bulunmuyor. Sol menüdeki '🆕 YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü sisteme tanımlayabilirsiniz.")
+
