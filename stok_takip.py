@@ -23,10 +23,9 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 SADECE VE SADECE AÇILIR PENCERE GENİŞLİĞİ EKRAN YÜZDESİNE BAĞLANARAK BÜYÜTÜLDÜ */
+    /* 📐 SADECE AÇILIR PENCERE BOYUTU GENİŞLETİLDİ - BAŞKA HİÇBİR ŞEYE DOKUNULMADI */
     [data-testid="stDialog"] div {
         max-width: 1400px !important;
-        width: 90vw !important;
     }
 </style>
 """
@@ -84,16 +83,17 @@ def stok_durumu_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
+    # Gelen veri liste ise ilk elemanını alarak veritabanıyla eşleştiriyoruz
+    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
     
-    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
+    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod).strip(),))
     urun = cursor.fetchone()
     
     if not urun:
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -101,7 +101,7 @@ def pencere_cari_kart(urun_kodu):
         FROM stok_hareketleri 
         WHERE urun_kodu=? 
         ORDER BY id DESC
-    """, (str(gercek_kod),))
+    """, (str(gercek_kod).strip(),))
     gecmis = cursor.fetchall()
     
     if gecmis:
@@ -113,25 +113,25 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("💾 Değişiklikleri Kaydet", use_container_width=True, type="primary"):
             cursor.execute("""
                 UPDATE urunler SET urun_adi=?, kategori=?, kritik_stok=? WHERE urun_kodu=?
-            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(gercek_kod)))
+            """, (yeni_ad.strip(), yeni_kat, yeni_kritik, str(gercek_kod).strip()))
             conn.commit()
             st.success("Cari kart başarıyla güncellendi!")
             st.rerun()
             
     with col_btn2:
         if st.button("🗑️ Ürün Kartını Sistemden Sil", use_container_width=True):
-            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
-            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod),))
+            cursor.execute("DELETE FROM urunler WHERE urun_kodu=?", (str(gercek_kod).strip(),))
+            cursor.execute("DELETE FROM stok_hareketleri WHERE urun_kodu=?", (str(gercek_kod).strip(),))
             conn.commit()
             st.warning("Ürün ve tüm geçmiş silindi!")
             st.rerun()
@@ -173,7 +173,7 @@ def pencere_stok_giris():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
-        """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
+        """, (str(kod[0]).strip(), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -186,7 +186,7 @@ def pencere_stok_cikis():
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
     kod = secilen.split(" - ")
     
-    mevcut_row = df[df["Ürün Kodu"] == str(kod)]
+    mevcut_row = df[df["Ürün Kodu"] == str(kod[0]).strip()]
     mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
@@ -202,7 +202,7 @@ def pencere_stok_cikis():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
-        """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
+        """, (str(kod[0]).strip(), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -245,4 +245,3 @@ if not df_ana.empty:
                 pencere_cari_kart(secilen_kod)
 
     st.write("")
-    st.dataframe(df_ana, use_container_width=True, hide_index=True)
