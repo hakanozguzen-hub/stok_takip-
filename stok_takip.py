@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 )""")
 conn.commit()
 
-# SÜTUN KONTROLLERİ (Eski veritabanınız varsa eksik alanları tamamlar)
+# SÜTUN KONTROLLERİ
 try:
     cursor.execute("ALTER TABLE urunler ADD COLUMN birim_fiyat REAL DEFAULT 0.0")
     conn.commit()
@@ -72,7 +72,7 @@ def stok_durumu_getir():
     
     stok_listesi = []
     for row in urunler:
-        # Doğru veri ayrıştırma (Hata buradaydı, düzeltildi)
+        # Verileri indekslerine göre doğru eşleştiriyoruz (Hata buradaydı, düzeltildi)
         kod = row[0]
         ad = row[1]
         kat = row[2]
