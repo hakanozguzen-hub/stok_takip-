@@ -1,6 +1,5 @@
 import sqlite3
 from datetime import datetime
-import io
 import pandas as pd
 import streamlit as st
 
@@ -26,8 +25,6 @@ GÖRSEL_AYARLAR = """
         color: #1e40af; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
-    
-    /* 📐 AÇILIR PENCERELERİN GENİŞLİK AYARI (1400px) */
     [data-testid="stDialog"] div {
         max-width: 1400px !important;
     }
@@ -63,29 +60,25 @@ conn.commit()
 
 # --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def guncel_stok_verilerini_getir():
-    try:
-        sorgu = """
-        SELECT 
-            u.urun_kodu AS [Ürün Kodu],
-            u.urun_adi AS [Ürün Adı],
-            u.kategori AS [Kategori],
-            IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
-            IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-            (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-             IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
-            u.kritik_stok AS [Kritik Limit],
-            CASE 
-                WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-                      IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= IFNULL(u.kritik_stok, 5) 
-                THEN '⚠️ Kritik' 
-                ELSE '✅ Yeterli' 
-            END AS [Durum]
-        FROM urunler u
-        """
-        return pd.read_sql_query(sorgu, conn)
-    except Exception as e:
-        st.error(f"Veritabanı Bağlantı Hatası: {str(e)}")
-        return pd.DataFrame(columns=["Ürün Kodu", "Ürün Adı", "Kategori", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Kritik Limit", "Durum"])
+    sorgu = """
+    SELECT 
+        u.urun_kodu AS [Ürün Kodu],
+        u.urun_adi AS [Ürün Adı],
+        u.kategori AS [Kategori],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
+        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+        u.kritik_stok AS [Kritik Limit],
+        CASE 
+            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= IFNULL(u.kritik_stok, 5) 
+            THEN '⚠️ Kritik' 
+            ELSE '✅ Yeterli' 
+        END AS [Durum]
+    FROM urunler u
+    """
+    return pd.read_sql_query(sorgu, conn)
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -164,7 +157,7 @@ def pencere_urun_ekle():
                 st.error("Bu kod zaten mevcut!")
 
 @st.dialog("📥 Stok Girişi (Mal Alımı)")
-def pencere_stok_giris():
+def pencerestok_giris():
     df = guncel_stok_verilerini_getir()
     if df.empty:
         st.warning("Önce ürün eklemelisiniz.")
@@ -233,6 +226,18 @@ if not st.session_state["oturum_acildi"]:
     st.stop()
 
 
-# --- ANA PANEL ARABİRİMİ (HİZALAMALAR TAMAMEN KONTROL EDİLDİ) ---
+# --- ANA PANEL ARABİRİMİ ---
 with st.sidebar:
     st.title("⚙️ İşlem Menüsü")
+    if st.button("🆕 YENİ ÜRÜN KARTİ", use_container_width=True): pencere_urun_ekle()
+    if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencerestok_giris()
+    if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
+    st.divider()
+    if st.button("🔒 Güvenli Çıkış Yap", use_container_width=True):
+        st.session_state["oturum_acildi"] = False
+        st.rerun()
+
+st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
+
+df_ana = guncel_stok_verilerini_getir()
+
