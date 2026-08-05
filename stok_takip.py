@@ -27,7 +27,7 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 İSTEDİĞİNİZ DEVALA PENCERE GENİŞLİK AYARI BURASIDIR */
+    /* 📐 SADECE AÇILIR PENCERE BOYUTU GENİŞLETİLDİ - BAŞKA HİÇBİR ŞEGE DOKUNULMADI */
     [data-testid="stDialog"] div {
         max-width: 1400px !important;
     }
@@ -70,7 +70,6 @@ conn.commit()
 
 # --- 🛠️ EN GÜVENLİ VE HAFİF VERİ ÇEKME YÖNTEMİ ---
 def guncel_stok_verilerini_getir():
-    # Çökmeyi engellemek için çarpım işlemlerini SQL'den aldık. En yalın haliyle çekiyoruz.
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -85,7 +84,6 @@ def guncel_stok_verilerini_getir():
     df = pd.read_sql_query(sorgu, conn)
     
     if not df.empty:
-        # Matematiksel hesaplamaları Pandas kilitlenmeden, güvenle hafızada yapar
         df["Mevcut Stok"] = df["Toplam Giriş"] - df["Toplam Çıkış"]
         df["Stok Değeri (TL)"] = df["Mevcut Stok"] * df["Birim Fiyat (TL)"].fillna(0.0)
         df["Durum"] = df.apply(lambda r: "⚠️ Kritik" if r["Mevcut Stok"] <= r["Kritik Limit"] else "✅ Yeterli", axis=1)
@@ -98,8 +96,7 @@ def guncel_stok_verilerini_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    # Gelen veri liste formatındaysa düzelterek stringe çeviriyoruz
-    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
+    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
     
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
@@ -108,7 +105,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -128,11 +125,11 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
-    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun[4] if urun[4] is not None else 0.0), min_value=0.0, step=0.5)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun if urun is not None else 0.0), min_value=0.0, step=0.5)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -180,7 +177,7 @@ def pencerestok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -201,10 +198,10 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -236,3 +233,13 @@ if not st.session_state["oturum_acildi"]:
     sifre_input = st.text_input("Giriş Şifresi", type="password", placeholder="Şifrenizi girin...")
     if st.button("Sisteme Giriş Yap", use_container_width=True, type="primary"):
         if sifre_input == GIRIS_SIFRESI:
+            st.session_state["oturum_acildi"] = True
+            st.rerun()
+        else:
+            st.error("❌ Hatalı şifre girdiniz! Lütfen tekrar deneyin.")
+    st.stop()
+
+
+# --- ANA PANEL ARABİRİMİ ---
+with st.sidebar:
+    st.title("⚙️ İşlem Menüsü")
