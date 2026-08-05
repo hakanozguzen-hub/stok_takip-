@@ -27,7 +27,7 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 AÇILIR PENCERELERİN GENİŞLİK AYARI (1400px) */
+    /* 📐 PENCERE GENİŞLİK AYARI (1400px) */
     [data-testid="stDialog"] div {
         max-width: 1400px !important;
     }
@@ -61,29 +61,33 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ (SQL SEVİYESİNDE HESAPLAMA) ---
+# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
-    # Python tarafında çökebilecek apply/lambda gibi hiçbir riskli döngü bırakmadık.
-    # Tüm hesaplamalar doğrudan SQL içinde tamamlanıyor.
-    sorgu = """
-    SELECT 
-        u.urun_kodu AS [Ürün Kodu],
-        u.urun_adi AS [Ürün Adı],
-        u.kategori AS [Kategori],
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
-        u.kritik_stok AS [Kritik Limit],
-        CASE 
-            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
-                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= IFNULL(u.kritik_stok, 5) 
-            THEN '⚠️ Kritik' 
-            ELSE '✅ Yeterli' 
-        END AS [Durum]
-    FROM urunler u
-    """
-    return pd.read_sql_query(sorgu, conn)
+    try:
+        # Hesaplamalar doğrudan SQL içinde tamamlanıyor.
+        sorgu = """
+        SELECT 
+            u.urun_kodu AS [Ürün Kodu],
+            u.urun_adi AS [Ürün Adı],
+            u.kategori AS [Kategori],
+            IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
+            IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
+            (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+             IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+            u.kritik_stok AS [Kritik Limit],
+            CASE 
+                WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+                      IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= IFNULL(u.kritik_stok, 5) 
+                THEN '⚠️ Kritik' 
+                ELSE '✅ Yeterli' 
+            END AS [Durum]
+        FROM urunler u
+        """
+        return pd.read_sql_query(sorgu, conn)
+    except Exception as e:
+        # Eğer SQL çökerse ekranı beyaz bırakma, hatayı buraya yazdır
+        st.error(f"Veritabanı Okuma Hatası: {str(e)}")
+        return pd.DataFrame(columns=["Ürün Kodu", "Ürün Adı", "Kategori", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Kritik Limit", "Durum"])
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -234,7 +238,3 @@ if not st.session_state["oturum_acildi"]:
 # --- ANA PANEL ARABİRİMİ ---
 with st.sidebar:
     st.title("⚙️ İşlem Menüsü")
-    if st.button("🆕 YENİ ÜRÜN KARTİ", use_container_width=True): pencere_urun_ekle()
-    if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencere_stok_giris()
-    if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
-    st.divider()
