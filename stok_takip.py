@@ -234,4 +234,4 @@ st.divider()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
-if df_ana.empty:
+# Hizalama hatasına sebep olan if-else bloğu tamamen temizlendi ve basitleştirildi
