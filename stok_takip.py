@@ -11,7 +11,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🎨 GÖRSEL TASARIM AYARLARI (CSS) ---
+# --- 🎨 GÖRSEL TASARIM VE PENCERE ÖLÇÜ AYARLARI (CSS) ---
+# Buradaki değerleri değiştirerek pencerelerin boyutlarını ve renklerini yönetebilirsiniz.
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -21,6 +22,11 @@ GÖRSEL_AYARLAR = """
     .cari-baslik {
         color: #1e40af; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
+    }
+    
+    /* 📐 AÇILIR PENCERELERİN (POP-UP) GENİŞLİĞİNİ BURADAN DEĞİŞTİREBİLİRSİNİZ */
+    [data-testid="stDialog"] div {
+        max-width: 850px !important; /* İstediğiniz piksel değerini (Örn: 600px, 900px) buraya yazın */
     }
 </style>
 """
@@ -55,7 +61,6 @@ conn.commit()
 
 # --- 🛠️ PANDAS İLE GELİŞMİŞ GÜVENLİ VERİ ÇEKME SİSTEMİ ---
 def stok_durumu_getir():
-    # Parantez hatalarını önlemek için doğrudan Türkçe sütun isimleriyle veri çekiyoruz
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -80,7 +85,7 @@ def stok_durumu_getir():
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
-@st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ". width="large")
+@st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler WHERE urun_kodu=?", (urun_kodu,))
     urun = cursor.fetchone()
@@ -235,10 +240,3 @@ else:
     
     with col_islem:
         urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"]
-        secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
-        
-        if secilen_urun != "--- Cari Kart Seç ---":
-            secilen_kod = secilen_urun.split(" - ")[0]
-            pencere_cari_kart(secilen_kod)
-
-    st.write("")
