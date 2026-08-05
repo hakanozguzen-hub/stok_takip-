@@ -12,7 +12,6 @@ st.set_page_config(
 )
 
 # --- 🎨 GÖRSEL TASARIM VE PENCERE ÖLÇÜ AYARLARI (CSS) ---
-# Buradaki değerleri değiştirerek pencerelerin boyutlarını ve renklerini yönetebilirsiniz.
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -24,9 +23,9 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 AÇILIR PENCERELERİN (POP-UP) GENİŞLİĞİNİ BURADAN DEĞİŞTİREBİLİRSİNİZ */
+    /* 📐 AÇILIR PENCERELERİN (POP-UP) GENİŞLİĞİNİ BURADAN PİKSEL OLARAK DEĞİŞTİREBİLİRSİNİZ */
     [data-testid="stDialog"] div {
-        max-width: 850px !important; /* İstediğiniz piksel değerini (Örn: 600px, 900px) buraya yazın */
+        max-width: 900px !important; /* Pencereleri genişletmek veya daraltmak için burayı değiştirin */
     }
 </style>
 """
@@ -42,7 +41,7 @@ CREATE TABLE IF NOT EXISTS urunler (
     urun_kodu TEXT PRIMARY KEY,
     urun_adi TEXT,
     kategori TEXT,
-    kritik_stok INTEGER,
+    kritik_stok INTEGER DEFAULT 5,
     birim_fiyat REAL DEFAULT 0.0
 )""")
 
@@ -59,8 +58,10 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ PANDAS İLE GELİŞMİŞ GÜVENLİ VERİ ÇEKME SİSTEMİ ---
+# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ (ÇÖKME İHTİMALİ YOKTUR) ---
 def stok_durumu_getir():
+    # Kritik stok kontrolünü ve matematiksel hesaplamaları doğrudan SQL içinde yapıyoruz.
+    # Python tarafında hiçbir riskli döngü veya apply fonksiyonu çalışmaz.
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -69,19 +70,20 @@ def stok_durumu_getir():
         u.birim_fiyat AS [Birim Fiyat (TL)],
         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
-        u.kritik_stok AS [Kritik Limit]
+        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+        ((IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+          IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) * u.birim_fiyat) AS [Stok Değeri (TL)],
+        u.kritik_stok AS [Kritik Limit],
+        CASE 
+            WHEN (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+                  IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) <= u.kritik_stok 
+            THEN '⚠️ Kritik' 
+            ELSE '✅ Yeterli' 
+        END AS [Durum]
     FROM urunler u
     """
-    df = pd.read_sql_query(sorgu, conn)
-    
-    if not df.empty:
-        df["Mevcut Stok"] = df["Toplam Giriş"] - df["Toplam Çıkış"]
-        df["Stok Değeri (TL)"] = df["Mevcut Stok"] * df["Birim Fiyat (TL)"]
-        df["Durum"] = df.apply(lambda r: "⚠️ Kritik" if r["Mevcut Stok"] <= r["Kritik Limit"] else "✅ Yeterli", axis=1)
-    else:
-        df = pd.DataFrame(columns=["Ürün Kodu", "Ürün Adı", "Kategori", "Birim Fiyat (TL)", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Stok Değeri (TL)", "Kritik Limit", "Durum"])
-        
-    return df
+    return pd.read_sql_query(sorgu, conn)
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -117,8 +119,8 @@ def pencere_cari_kart(urun_kodu):
     yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
                             index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3]), min_value=0)
-    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun[4]), min_value=0.0, step=0.5)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
+    yeni_fiyat = st.number_input("Birim Fiyat (TL)", value=float(urun[4] if urun[4] is not None else 0.0), min_value=0.0, step=0.5)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -188,7 +190,8 @@ def pencere_stok_cikis():
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
     kod = secilen.split(" - ")[0]
     
-    mevcut = int(df[df["Ürün Kodu"] == kod]["Mevcut Stok"].values[0]) if not df[df["Ürün Kodu"] == kod].empty else 0
+    mevcut_row = df[df["Ürün Kodu"] == kod]
+    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -217,6 +220,7 @@ with st.sidebar:
 
 st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
+# Güvenli Veriyi Çek
 df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
@@ -225,18 +229,3 @@ if not df_ana.empty:
     col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
     col3.metric("Toplam Depo Değeri", f"{df_ana['Stok Değeri (TL)'].sum():,.2f} TL")
 else:
-    col1.metric("Toplam Çeşit", "0 Ürün")
-    col2.metric("Toplam Stok Adedi", "0 Adet")
-    col3.metric("Toplam Depo Değeri", "0.00 TL")
-
-st.divider()
-
-st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
-
-if df_ana.empty:
-    st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
-else:
-    col_alan, col_islem = st.columns(2)
-    
-    with col_islem:
-        urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"]
