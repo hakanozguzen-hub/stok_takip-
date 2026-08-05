@@ -52,26 +52,14 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 )""")
 conn.commit()
 
-# Eksik Sütun Kontrolleri (Güvenlik Önlemi)
-try:
-    cursor.execute("ALTER TABLE urunler ADD COLUMN birim_fiyat REAL DEFAULT 0.0")
-    conn.commit()
-except sqlite3.OperationalError: pass
 
-try:
-    cursor.execute("ALTER TABLE stok_hareketleri ADD COLUMN cari_unvan TEXT DEFAULT '-'")
-    conn.commit()
-except sqlite3.OperationalError: pass
-
-
-# --- 🛠️ VERİ ÇEKME VE MATEMATİKSEL HESAPLAMA (KESİN ÇÖZÜMÜ) ---
+# --- 🛠️ GÜVENLİ VERI ÇEKME VE MATEMATİKSEL HESAPLAMA ---
 def stok_durumu_getir():
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler")
     urunler = cursor.fetchall()
     
     stok_listesi = []
     for row in urunler:
-        # İndeks numaraları ile eşleştirme yapılarak çökme sorunu tamamen engellendi
         kod = row[0]
         ad = row[1]
         kat = row[2]
@@ -107,7 +95,7 @@ def stok_durumu_getir():
     return pd.DataFrame(stok_listesi)
 
 
-# --- 📋 ÜRÜNE TIKLAYINCA AÇILAN DETAYLI CARİ KART PENCERESİ ---
+# --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler WHERE urun_kodu=?", (urun_kodu,))
@@ -162,7 +150,7 @@ def pencere_cari_kart(urun_kodu):
             st.rerun()
 
 
-# --- İŞLEM PENCERELERİ ---
+# --- DİĞER İŞLEM PENCERELERİ ---
 @st.dialog("🆕 Yeni Ürün Kartı Tanımla")
 def pencere_urun_ekle():
     kod = st.text_input("Ürün Kodu")
@@ -240,7 +228,7 @@ with st.sidebar:
 
 st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
-# Verileri Çek
+# Dinamik Veriyi Çek
 df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
@@ -256,3 +244,13 @@ else:
 st.divider()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
+
+if df_ana.empty:
+    st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
+else:
+    # 🔥 ARTIK ASLA KİLİTLENMEYEN SEÇİM VE TABLO ALANI
+    col_ara, col_sec = st.columns([2, 1])
+    
+    with col_sec:
+        # Cari kartı açmak için güvenli ve çökme ihtimali sıfır olan açılır menü
+        urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"]
