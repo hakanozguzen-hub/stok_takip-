@@ -23,7 +23,7 @@ GÖRSEL_AYARLAR = """
         border-bottom: 5px solid #3b82f6; padding-bottom: 30px; margin-bottom: 30px;
     }
     [data-testid="stDialog"] div {
-        max-width: 1600px !important;
+        max-width: 2500px !important;
     }
 </style>
 """
