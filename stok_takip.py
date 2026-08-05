@@ -88,7 +88,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -108,10 +108,10 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -182,7 +182,7 @@ def pencere_stok_cikis():
     kod = secilen.split(" - ")
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -240,8 +240,6 @@ df_ana = guncel_stok_verilerini_getir()
 
 st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 
-# 🔥 KESİN ÇÖZÜM: Girinti hatası üreten tüm if-else kalıpları yıkıldı.
-# Kodlar düz ve bağımsız bir sırayla ekrana basılıyor.
-col_islem, col_excel = st.columns(2)
-
-with col_islem:
+# 🔥 KESİN ÇÖZÜM: Girinti hatası üreten tüm yan yana sütun (with col:) yapıları temizlendi.
+# Elemanlar alt alta hatasız ve yalın şekilde dizildi.
+urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"] if not df_ana.empty else []
