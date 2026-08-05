@@ -86,7 +86,7 @@ def stok_durumu_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
+    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
     
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
@@ -95,7 +95,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -115,10 +115,10 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -165,7 +165,7 @@ def pencere_stok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -173,7 +173,7 @@ def pencere_stok_giris():
     
     if st.button("Girişi Onayla", use_container_width=True, type="primary"):
         cursor.execute("""
-            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
+            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, text, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
         """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
@@ -186,11 +186,10 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod = secilen.split(" - ")
     
-    # 🔥 Kesin Çözüm: Array hatasına karşı güvenli ilk eleman çekme mantığı
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -203,7 +202,7 @@ def pencere_stok_cikis():
         
     if st.button("Çıkışı Onayla", use_container_width=True, type="primary"):
         cursor.execute("""
-            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
+            INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, text, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
         """, (str(kod), int(miktar), datetime.now().strftime("%Y-%m-%d %H:%M"), aciklama, cari_unvan))
         conn.commit()
@@ -216,7 +215,10 @@ if "oturum_acildi" not in st.session_state:
 
 if not st.session_state["oturum_acildi"]:
     st.write("")
-    col_bos1, col_giriş, col_bos2 = st.columns([1,2,1])
+    st.write("")
+    st.write("")
+    # 🔥 Sütun oranları [1, 2, 1] yapılarak ortadaki şifre kutusu ve buton genişletildi, hizalandı
+    col_bos1, col_giriş, col_bos2 = st.columns([1, 2, 1])
     with col_giriş:
         st.markdown("<h2 style='text-align: center;'>📦 İŞYERİ STOK SİSTEMİ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray;'>Lütfen devam etmek için giriş şifrenizi yazınız.</p>", unsafe_allow_html=True)
@@ -235,7 +237,7 @@ if not st.session_state["oturum_acildi"]:
 with st.sidebar:
     st.title("⚙️ İşlem Menüsü")
     if st.button("🆕 YENİ ÜRÜN KARTİ", use_container_width=True): pencere_urun_ekle()
-    if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencere_stok_giris()
+    if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencere_stok_giriş()
     if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
     st.divider()
     if st.button("🔒 Güvenli Çıkış Yap", use_container_width=True):
@@ -246,4 +248,3 @@ st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
 df_ana = stok_durumu_getir()
 
-col1, col2 = st.columns(2)
