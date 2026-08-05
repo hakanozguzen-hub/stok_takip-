@@ -56,27 +56,28 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
+# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
+    # Sütunları doğrudan SQL içinde Türkçe adlandırıyoruz, böylece alt tarafta hata çıkarma ihtimali kalmıyor
     sorgu = """
     SELECT 
-        u.urun_kodu,
-        u.urun_adi,
-        u.kategori,
-        u.birim_fiyat,
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS toplam_giris,
-        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS toplam_cikis,
-        u.kritik_stok
+        u.urun_kodu AS [Ürün Kodu],
+        u.urun_adi AS [Ürün Adı],
+        u.kategori AS [Kategori],
+        u.birim_fiyat AS [Birim Fiyat (TL)],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
+        u.kritik_stok AS [Kritik Limit]
     FROM urunler u
     """
     df = pd.read_sql_query(sorgu, conn)
     
     if not df.empty:
-        df["mevcut_stok"] = df["toplam_giris"] - df["toplam_cikis"]
-        df["stok_degeri"] = df["mevcut_stok"] * df["birim_fiyat"]
-        df["durum"] = df.apply(lambda r: "⚠️ Kritik" if r["mevcut_stok"] <= r["kritik_stok"] else "✅ Yeterli", axis=1)
+        df["Mevcut Stok"] = df["Toplam Giriş"] - df["Toplam Çıkış"]
+        df["Stok Değeri (TL)"] = df["Mevcut Stok"] * df["Birim Fiyat (TL)"]
+        df["Durum"] = df.apply(lambda r: "⚠️ Kritik" if r["Mevcut Stok"] <= r["Kritik Limit"] else "✅ Yeterli", axis=1)
     else:
-        df = pd.DataFrame(columns=["urun_kodu", "urun_adi", "kategori", "birim_fiyat", "toplam_giris", "toplam_cikis", "kritik_stok", "mevcut_stok", "stok_degeri", "durum"])
+        df = pd.DataFrame(columns=["Ürün Kodu", "Ürün Adı", "Kategori", "Birim Fiyat (TL)", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Stok Değeri (TL)", "Kritik Limit", "Durum"])
         
     return df
 
@@ -161,7 +162,7 @@ def pencere_stok_giris():
     if df.empty:
         st.warning("Önce ürün eklemelisiniz.")
         return
-    secilen = st.selectbox("Giriş Yapılacak Ürün", df["urun_kodu"] + " - " + df["urun_adi"])
+    secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
     kod = secilen.split(" - ")
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
@@ -182,11 +183,11 @@ def pencere_stok_cikis():
     if df.empty:
         st.warning("Ürün bulunamadı.")
         return
-    secilen = st.selectbox("Çıkış Yapılacak Ürün", df["urun_kodu"] + " - " + df["urun_adi"])
+    secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
     kod = secilen.split(" - ")
     
-    mevcut_row = df[df["urun_kodu"] == kod]
-    mevcut = int(mevcut_row["mevcut_stok"].values) if not mevcut_row.empty else 0
+    mevcut_row = df[df["Ürün Kodu"] == kod]
+    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -220,8 +221,8 @@ df_ana = stok_durumu_getir()
 col1, col2, col3 = st.columns(3)
 if not df_ana.empty:
     col1.metric("Toplam Çeşidi", f"{len(df_ana)} Ürün")
-    col2.metric("Toplam Stok Adedi", f"{int(df_ana['mevcut_stok'].sum())} Adet")
-    col3.metric("Toplam Depo Değeri", f"{df_ana['stok_degeri'].sum():,.2f} TL")
+    col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
+    col3.metric("Toplam Depo Değeri", f"{df_ana['Stok Değeri (TL)'].sum():,.2f} TL")
 else:
     col1.metric("Toplam Çeşidi", "0 Ürün")
     col2.metric("Toplam Stok Adedi", "0 Adet")
@@ -234,16 +235,7 @@ st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 if not df_ana.empty:
     col_alan, col_islem = st.columns(2)
     with col_islem:
-        urun_secenekleri = df_ana["urun_kodu"] + " - " + df_ana["urun_adi"]
+        urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"]
         secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
-        
-        # Hizalama hatasına (IndentationError) yol açan tüm iç içe if yapıları temizlendi
         if secilen_urun != "--- Cari Kart Seç ---":
             secilen_kod = secilen_urun.split(" - ")
-            st.button("🔍 CARİ KART PENCERESİNİ AÇ", use_container_width=True, type="primary", on_click=pencere_cari_kart, args=(secilen_kod,))
-
-    st.write("")
-    
-    st.dataframe(
-        df_ana,
-        use_container_width=True,
