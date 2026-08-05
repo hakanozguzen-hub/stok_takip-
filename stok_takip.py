@@ -55,7 +55,6 @@ conn.commit()
 
 # --- 🛠️ PANDAS İLE GELİŞMİŞ GÜVENLİ VERİ ÇEKME SİSTEMİ ---
 def stok_durumu_getir():
-    # Çökmeleri engellemek için Türkçe karakter içermeyen standart sütun adları kullanıyoruz
     sorgu = """
     SELECT 
         u.urun_kodu,
@@ -70,12 +69,10 @@ def stok_durumu_getir():
     df = pd.read_sql_query(sorgu, conn)
     
     if not df.empty:
-        # Hesaplamaları standart İngilizce karakterli sütunlar üzerinden güvenle yapıyoruz
         df["mevcut_stok"] = df["toplam_giris"] - df["toplam_cikis"]
         df["stok_degeri"] = df["mevcut_stok"] * df["birim_fiyat"]
         df["durum"] = df.apply(lambda r: "⚠️ Kritik" if r["mevcut_stok"] <= r["kritik_stok"] else "✅ Yeterli", axis=1)
     else:
-        # Eğer veritabanı boşsa boş şablon oluştur
         df = pd.DataFrame(columns=["urun_kodu", "urun_adi", "kategori", "birim_fiyat", "toplam_giris", "toplam_cikis", "kritik_stok", "mevcut_stok", "stok_degeri", "durum"])
         
     return df
@@ -214,7 +211,6 @@ with st.sidebar:
 
 st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
-# Dinamik Veriyi Güvenle Çek
 df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
@@ -234,12 +230,24 @@ st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 if df_ana.empty:
     st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
 else:
-    col_alan, col_islem = st.columns([2, 1])
+    col_alan, col_islem = st.columns(2)
     
     with col_islem:
-        # Cari seçim kutusu
         urun_secenekleri = df_ana["urun_kodu"] + " - " + df_ana["urun_adi"]
         secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
         
-        # 🔥 Butona basma zorunluluğunu kaldırdık, listeden seçildiği an direkt pop-up açılır
+        # Hizalama hatası (Indentation) tamamen düzeltildi
         if secilen_urun != "--- Cari Kart Seç ---":
+            secilen_kod = secilen_urun.split(" - ")[0]
+            pencere_cari_kart(secilen_kod)
+
+    st.write("")
+    
+    st.dataframe(
+        df_ana,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "urun_kodu": "Ürün Kodu",
+            "urun_adi": "Ürün Adı",
+            "kategori": "Kategori",
