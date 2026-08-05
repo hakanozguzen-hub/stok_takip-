@@ -25,7 +25,7 @@ GÖRSEL_AYARLAR = """
     
     /* 📐 İSTEDİĞİNİZ DEVALA PENCERE GENİŞLİK AYARI BURASIDIR */
     [data-testid="stDialog"] div {
-        max-width: 1200px !important; /* Ekranı kaplaması için genişlik 1200 piksele çıkartıldı */
+        max-width: 1200px !important;
     }
 </style>
 """
@@ -60,7 +60,6 @@ conn.commit()
 
 # --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
-    # Sütunları doğrudan SQL içinde Türkçe adlandırıyoruz, hata çıkarma ihtimali sıfırlanıyor
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -240,4 +239,6 @@ if not df_ana.empty:
         urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"]
         secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
         
+        # Hizalama hatası kökten çözüldü, tüm içerik nizami şekilde hizalandı
         if secilen_urun != "--- Cari Kart Seç ---":
+            secilen_kod = secilen_urun.split(" - ")[0]
