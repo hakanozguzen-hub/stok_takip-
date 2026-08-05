@@ -180,8 +180,9 @@ def pencere_stok_cikis():
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
     kod = secilen.split(" - ")
     
+    # DÜZELTME: str(kod[0]) kullanılarak ham metin alındı ve değer .iloc[0] ile güvenli şekilde çekildi.
     mevcut_row = df[df["Ürün Kodu"] == str(kod[0])]
-    mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].iloc[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -245,7 +246,7 @@ if not df_stok.empty:
     
     secilen_indeksler = tablo_kontrol.get("selection", {}).get("rows", [])
     if secilen_indeksler:
-        gercek_indeks = secilen_indeksler[0]
+        gercek_indeks = secilen_indeksler[0]  # Liste biçimindeki ilk indeksi güvenli alıyoruz
         tiklanan_urun_kodu = df_stok.iloc[gercek_indeks]["Ürün Kodu"]
         
         st.write("")
