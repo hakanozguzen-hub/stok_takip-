@@ -12,32 +12,22 @@ st.set_page_config(
 )
 
 # --- 🎨 BURADAN RENK VE YAZILARI DEĞİŞTİREBİLİRSİNİZ (CSS AYARLARI) ---
-# İstediğiniz renk kodlarını (#ffffff, #000000 vb.) yazarak her şeyi değiştirebilirsiniz.
 GÖRSEL_AYARLAR = """
 <style>
-    /* 1. Tüm Programın Arka Plan Rengi */
     .stApp {
         background-color: #f8f9fa;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    
-    /* 2. Ana Başlıkların Rengi ve Kalınlığı */
     h1, h2, h3 {
         color: #2c3e50 !important;
         font-weight: 700 !important;
     }
-    
-    /* 3. Sol Menü (Sidebar) Arka Plan Rengi */
     [data-testid="stSidebar"] {
         background-color: #1e293b !important;
     }
-    
-    /* 4. Sol Menüdeki Yazıların Rengi */
     [data-testid="stSidebar"] ***, [data-testid="stSidebar"] p {
         color: #f8fafc !important;
     }
-    
-    /* 5. Cari Kart Başlık Stili */
     .cari-baslik {
         color: #2563eb;
         font-size: 24px;
@@ -54,16 +44,24 @@ st.markdown(GÖRSEL_AYARLAR, unsafe_allow_html=True)
 conn = sqlite3.connect("stok_takip_modern.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Tabloları Oluştur
+# 1. Ana Tabloyu Oluştur (Eğer hiç yoksa)
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS urunler (
     urun_kodu TEXT PRIMARY KEY,
     urun_adi TEXT,
     kategori TEXT,
-    kritik_stok INTEGER,
-    birim_fiyat REAL DEFAULT 0.0
+    kritik_stok INTEGER
 )""")
 
+# 🔥 KESİN ÇÖZÜM: 'birim_fiyat' sütunu eski veritabanında yoksa otomatik ekle
+try:
+    cursor.execute("ALTER TABLE urunler ADD COLUMN birim_fiyat REAL DEFAULT 0.0")
+    conn.commit()
+except sqlite3.OperationalError:
+    # Sütun zaten varsa hata verir, pas geçiyoruz
+    pass
+
+# 2. Hareket Tablosunu Oluştur
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS stok_hareketleri (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +81,9 @@ def stok_durumu_getir():
     urunler = cursor.fetchall()
     
     stok_listesi = []
-    for kod, ad, kat, kritik, fiyat in urunler:
+    for row in urunler:
+        kod, ad, kat, kritik, fiyat = row[0], row[1], row[2], row[3], row[4]
+        
         cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Giriş'", (kod,))
         giris_sonuc = cursor.fetchone()[0]
         giris = giris_sonuc if giris_sonuc is not None else 0
@@ -254,7 +254,6 @@ st.caption("💡 Detaylarını görmek veya düzenlemek istediğiniz ürünün s
 if df_ana.empty:
     st.info("💡 Sistemde henüz ürün bulunmuyor. Sol menüden yeni bir ürün kartı açarak başlayabilirsiniz.")
 else:
-    # Hata düzeltilmiş, parantezi düzgün kapatılmış fonksiyonel tablo alanı
     secim_takibi = st.dataframe(
         df_ana,
         use_container_width=True,
@@ -266,4 +265,3 @@ else:
         }
     )
     
-    # Seçim kontrol mekanizması
