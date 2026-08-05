@@ -53,46 +53,30 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ GÜVENLİ VERI ÇEKME VE MATEMATİKSEL HESAPLAMA ---
+# --- 🛠️ PANDAS İLE GELİŞMİŞ GÜVENLİ VERİ ÇEKME SİSTEMİ ---
 def stok_durumu_getir():
-    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok, birim_fiyat FROM urunler")
-    urunler = cursor.fetchall()
+    # Tüm çökmeleri engellemek için doğrudan SQL sorgusu ile veriyi Pandas tablosuna dönüştürüyoruz
+    sorgu = """
+    SELECT 
+        u.urun_kodu AS [Ürün Kodu],
+        u.urun_adi AS [Ürün Adı],
+        u.kategori AS [Kategori],
+        u.birim_fiyat AS [Birim Fiyat (TL)],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
+        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+        u.kritik_stok AS [Kritik Limit]
+    FROM urunler u
+    """
+    df = pd.read_sql_query(sorgu, conn)
     
-    stok_listesi = []
-    for row in urunler:
-        kod = row[0]
-        ad = row[1]
-        kat = row[2]
-        kritik = row[3]
-        fiyat = row[4]
+    if not df.empty:
+        # Ekstra matematiksel hesaplamaları güvenle ekle
+        df["Stok Değeri (TL)"] = df["Mevcut Stok"] * df["Birim Fiyat (TL)"]
+        df["Durum"] = df.apply(lambda r: "⚠️ Kritik" if r["Mevcut Stok"] <= r["Kritik Limit"] else "✅ Yeterli", axis=1)
         
-        # Girişleri topla
-        cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Giriş'", (kod,))
-        g_res = cursor.fetchone()
-        giris = g_res[0] if g_res and g_res[0] is not None else 0
-        
-        # Çıkışları topla
-        cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Çıkış'", (kod,))
-        c_res = cursor.fetchone()
-        cikis = c_res[0] if c_res and c_res[0] is not None else 0
-        
-        kalan = giris - cikis
-        durum = "⚠️ Kritik" if kalan <= kritik else "✅ Yeterli"
-        toplam_deger = kalan * fiyat
-        
-        stok_listesi.append({
-            "Ürün Kodu": kod,
-            "Ürün Adı": ad,
-            "Kategori": kat,
-            "Birim Fiyat (TL)": fiyat,
-            "Toplam Giriş": giris,
-            "Toplam Çıkış": cikis,
-            "Mevcut Stok": kalan,
-            "Stok Değeri (TL)": toplam_deger,
-            "Kritik Limit": kritik,
-            "Durum": durum
-        })
-    return pd.DataFrame(stok_listesi)
+    return df
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
@@ -150,7 +134,7 @@ def pencere_cari_kart(urun_kodu):
             st.rerun()
 
 
-# --- DİĞER İŞLEM PENCERELERİ ---
+# --- İŞLEM PENCERELERİ ---
 @st.dialog("🆕 Yeni Ürün Kartı Tanımla")
 def pencere_urun_ekle():
     kod = st.text_input("Ürün Kodu")
@@ -228,7 +212,7 @@ with st.sidebar:
 
 st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
-# Dinamik Veriyi Çek
+# Dinamik Veriyi Pandas Gücüyle Çek
 df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
@@ -248,9 +232,12 @@ st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
 if df_ana.empty:
     st.info("💡 Sistemde henüz ürün bulunmuyor. Sol taraftaki 'YENİ ÜRÜN KARTİ' butonuna basarak ilk ürününüzü ekleyebilirsiniz.")
 else:
-    # 🔥 ARTIK ASLA KİLİTLENMEYEN SEÇİM VE TABLO ALANI
-    col_ara, col_sec = st.columns([2, 1])
+    # Cari kartı açmak için açılır menü
+    col_alan, col_islem = st.columns([2, 1])
     
-    with col_sec:
-        # Cari kartı açmak için güvenli ve çökme ihtimali sıfır olan açılır menü
+    with col_islem:
         urun_secenekleri = df_ana["Ürün Kodu"] + " - " + df_ana["Ürün Adı"]
+        secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
+        
+        if secilen_urun != "--- Cari Kart Seç ---":
+            secilen_kod = secilen_urun.split(" - ")[0]
