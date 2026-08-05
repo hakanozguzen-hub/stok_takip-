@@ -15,7 +15,7 @@ st.set_page_config(
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
-    h1, h2, h3 { color: #2c3e50 !important; font-weight: 700 !important; }
+    h1, h2, h3 { color: #2c3e50 !important; font-weight: 1000 !important; }
     [data-testid="stSidebar"] { background-color: #1e293b !important; }
     [data-testid="stSidebar"] ***, [data-testid="stSidebar"] p { color: #f8fafc !important; }
     .cari-baslik {
