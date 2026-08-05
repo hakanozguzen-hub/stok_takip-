@@ -25,7 +25,7 @@ GÖRSEL_AYARLAR = """
     
     /* 📐 AÇILIR PENCERELERİN (POP-UP) GENİŞLİĞİNİ BURADAN PİKSEL OLARAK DEĞİŞTİREBİLİRSİNİZ */
     [data-testid="stDialog"] div {
-        max-width: 900px !important; /* Pencereleri genişletmek veya daraltmak için burayı değiştirin */
+        max-width: 900px !important;
     }
 </style>
 """
@@ -58,10 +58,8 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ (ÇÖKME İHTİMALİ YOKTUR) ---
+# --- 🛠️ EN GÜVENLİ VERİ ÇEKME YÖNTEMİ ---
 def stok_durumu_getir():
-    # Kritik stok kontrolünü ve matematiksel hesaplamaları doğrudan SQL içinde yapıyoruz.
-    # Python tarafında hiçbir riskli döngü veya apply fonksiyonu çalışmaz.
     sorgu = """
     SELECT 
         u.urun_kodu AS [Ürün Kodu],
@@ -220,7 +218,6 @@ with st.sidebar:
 
 st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
 
-# Güvenli Veriyi Çek
 df_ana = stok_durumu_getir()
 
 col1, col2, col3 = st.columns(3)
@@ -229,3 +226,12 @@ if not df_ana.empty:
     col2.metric("Toplam Stok Adedi", f"{int(df_ana['Mevcut Stok'].sum())} Adet")
     col3.metric("Toplam Depo Değeri", f"{df_ana['Stok Değeri (TL)'].sum():,.2f} TL")
 else:
+    col1.metric("Toplam Çeşit", "0 Ürün")
+    col2.metric("Toplam Stok Adedi", "0 Adet")
+    col3.metric("Toplam Depo Değeri", "0.00 TL")
+
+st.divider()
+
+st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
+
+if df_ana.empty:
