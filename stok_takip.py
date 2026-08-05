@@ -66,7 +66,6 @@ def guncel_stok_verilerini_getir():
     
     stok_listesi = []
     for row in urunler:
-        # 🔥 İndeks numaraları tam olarak eklendi, gizli kilitlenme hatası çözüldü
         kod = row[0]
         ad = row[1]
         kat = row[2]
@@ -82,7 +81,6 @@ def guncel_stok_verilerini_getir():
         c_res = cursor.fetchone()
         cikis = c_res[0] if c_res and c_res[0] is not None else 0
         
-        kalan = giris - determinar_cikis
         kalan = giris - cikis
         durum = "⚠️ Kritik" if kalan <= kritik else "✅ Yeterli"
         
@@ -97,7 +95,7 @@ def guncel_stok_verilerini_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
+    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
     
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
@@ -246,3 +244,7 @@ with st.sidebar:
     if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencerestok_giris()
     if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
     st.divider()
+    if st.button("🔒 Güvenli Çıkış Yap", use_container_width=True):
+        st.session_state["oturum_acildi"] = False
+        st.rerun()
+
