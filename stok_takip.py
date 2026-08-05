@@ -59,44 +59,33 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ KİLİTLENMEYEN EN SAĞLAM VERİ ÇEKME ALTYAPISI ---
+# --- 🛠️ ASLA KİLİTLENMEYEN SAF SQL VERİ ÇEKME SİSTEMİ ---
 def guncel_stok_verilerini_getir():
-    cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler")
-    urunler = cursor.fetchall()
-    
-    stok_listesi = []
-    for row in urunler:
-        kod = row[0]
-        ad = row[1]
-        kat = row[2]
-        kritik = row[3] if row[3] is not None else 5
-        
-        # Giriş miktarlarını topla
-        cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Giriş'", (kod,))
-        g_res = cursor.fetchone()
-        giris = g_res[0] if g_res and g_res[0] is not None else 0
-        
-        # Çıkış miktarlarını topla
-        cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Çıkış'", (kod,))
-        c_res = cursor.fetchone()
-        cikis = c_res[0] if c_res and c_res[0] is not None else 0
-        
-        kalan = giris - cikis
-        durum = "⚠️ Kritik" if kalan <= kritik else "✅ Yeterli"
-        
-        stok_listesi.append([kod, ad, kat, giris, cikis, kalan, kritik, durum])
-        
-    df = pd.DataFrame(stok_listesi, columns=[
-        "Ürün Kodu", "Ürün Adı", "Kategori", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Kritik Limit", "Durum"
-    ])
-    return df
+    # Çökmeye sebep olan tüm Python döngüleri ve apply/lambda riskleri kaldırıldı.
+    # En güvenli standart SQL mantığıyla veriler tek parça halinde çekiliyor.
+    sorgu = """
+    SELECT 
+        u.urun_kodu AS [Ürün Kodu],
+        u.urun_adi AS [Ürün Adı],
+        u.kategori AS [Kategori],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) AS [Toplam Giriş],
+        IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0) AS [Toplam Çıkış],
+        (IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Giriş'), 0) - 
+         IFNULL((SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu = u.urun_kodu AND islem_turu = 'Çıkış'), 0)) AS [Mevcut Stok],
+        u.kritik_stok AS [Kritik Limit]
+    FROM urunler u
+    """
+    return pd.read_sql_query(sorgu, conn)
 
 
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
-    
+    if isinstance(urun_kodu, list):
+        gercek_kod = urun_kodu[0]
+    else:
+        gercek_kod = urun_kodu
+        
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
     
@@ -104,7 +93,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun[0]} ({urun[1]}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -248,3 +237,12 @@ with st.sidebar:
         st.session_state["oturum_acildi"] = False
         st.rerun()
 
+st.title("📊 Gelişmiş Stok & Cari Kontrol Paneli")
+st.divider()
+
+# Güvenli verileri çek
+df_ana = guncel_stok_verilerini_getir()
+
+st.subheader("📦 Mevcut Stok Durumu ve Kalan Listesi")
+
+if not df_ana.empty:
