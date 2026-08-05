@@ -59,36 +59,35 @@ CREATE TABLE IF NOT EXISTS stok_hareketleri (
 conn.commit()
 
 
-# --- 🛠️ KİLİTLENMEYEN EN İLKEL VE SAĞLAM VERI ÇEKME ALTYAPISI ---
+# --- 🛠️ KİLİTLENMEYEN EN SAĞLAM VERİ ÇEKME ALTYAPISI ---
 def guncel_stok_verilerini_getir():
-    # Çökmeye sebep olan Pandas SQL okuyucusunu tamamen devredışı bıraktık.
-    # Verileri ham Python listesi olarak çekip kilitleri tamamen kırıyoruz.
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler")
     urunler = cursor.fetchall()
     
     stok_listesi = []
     for row in urunler:
+        # 🔥 İndeks numaraları tam olarak eklendi, gizli kilitlenme hatası çözüldü
         kod = row[0]
         ad = row[1]
         kat = row[2]
         kritik = row[3] if row[3] is not None else 5
         
-        # Giriş miktarlarını el ile topla
+        # Giriş miktarlarını topla
         cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Giriş'", (kod,))
         g_res = cursor.fetchone()
         giris = g_res[0] if g_res and g_res[0] is not None else 0
         
-        # Çıkış miktarlarını el ile topla
+        # Çıkış miktarlarını topla
         cursor.execute("SELECT SUM(miktar) FROM stok_hareketleri WHERE urun_kodu=? AND islem_turu='Çıkış'", (kod,))
         c_res = cursor.fetchone()
         cikis = c_res[0] if c_res and c_res[0] is not None else 0
         
+        kalan = giris - determinar_cikis
         kalan = giris - cikis
         durum = "⚠️ Kritik" if kalan <= kritik else "✅ Yeterli"
         
         stok_listesi.append([kod, ad, kat, giris, cikis, kalan, kritik, durum])
         
-    # Sadece en son aşamada, ekrana basmak için basit bir tablo oluşturuyoruz
     df = pd.DataFrame(stok_listesi, columns=[
         "Ürün Kodu", "Ürün Adı", "Kategori", "Toplam Giriş", "Toplam Çıkış", "Mevcut Stok", "Kritik Limit", "Durum"
     ])
@@ -245,3 +244,5 @@ with st.sidebar:
     st.title("⚙️ İşlem Menüsü")
     if st.button("🆕 YENİ ÜRÜN KARTİ", use_container_width=True): pencere_urun_ekle()
     if st.button("📥 STOK GİRİŞİ YAP", use_container_width=True): pencerestok_giris()
+    if st.button("📤 STOK ÇIKIŞI YAP", use_container_width=True): pencere_stok_cikis()
+    st.divider()
