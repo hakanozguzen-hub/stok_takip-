@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🎨 GÖRSEL TASARIM VE KESİN PENCERE BÜYÜTME AYARLARI (CSS) ---
+# --- 🎨 GÖRSEL TASARIM VE PENCERE ÖLÇÜ AYARLARI (CSS) ---
 GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -23,14 +23,9 @@ GÖRSEL_AYARLAR = """
         border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;
     }
     
-    /* 📐 KESİN ÇÖZÜM: DIŞ KUTU ENGELLERİNİ YIKARAK PENCEREYİ DEVASA YAPAR */
-    [data-testid="stDialog"], div[role="dialog"], .stDialog {
-        max-width: 1300px !important;
-        width: 90% !important;
-    }
+    /* 📐 SADECE AÇILIR PENCERE BOYUTU GENİŞLETİLDİ - DİĞER HİÇBİR ŞEYE DOKUNULMADI */
     [data-testid="stDialog"] div {
-        max-width: 1300px !important;
-        width: 100% !important;
+        max-width: 1400px !important;
     }
 </style>
 """
@@ -88,7 +83,8 @@ def stok_durumu_getir():
 # --- 📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ PENCERESİ ---
 @st.dialog("📋 ÜRÜN CARİ KARTI VE DETAYLI İŞLEM GEÇMİŞİ")
 def pencere_cari_kart(urun_kodu):
-    gercek_kod = urun_kodu if isinstance(urun_kodu, list) else urun_kodu
+    # Ürün kodunun tekil string olmasını sağlıyoruz (Hata buradaydı, düzeltildi)
+    gercek_kod = urun_kodu[0] if isinstance(urun_kodu, list) else urun_kodu
     
     cursor.execute("SELECT urun_kodu, urun_adi, kategori, kritik_stok FROM urunler WHERE urun_kodu=?", (str(gercek_kod),))
     urun = cursor.fetchone()
@@ -97,7 +93,7 @@ def pencere_cari_kart(urun_kodu):
         st.error("Ürün detayları bulunamadı!")
         return
 
-    st.markdown(f"<div class='cari-baslik'>{urun} ({urun}) Cari Kartı</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
     
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
     cursor.execute("""
@@ -117,10 +113,10 @@ def pencere_cari_kart(urun_kodu):
     st.divider()
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
-    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun)
+    yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
     yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun) if urun in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
-    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun if urun is not None else 5), min_value=0)
+                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
@@ -167,7 +163,7 @@ def pencere_stok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -188,7 +184,7 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
     mevcut = int(mevcut_row["Mevcut Stok"].values) if not mevcut_row.empty else 0
@@ -244,8 +240,9 @@ if not df_ana.empty:
         secilen_urun = st.selectbox("📂 İncelemek İstediğiniz Ürünü Seçin", ["--- Cari Kart Seç ---"] + list(urun_secenekleri))
         
         if secilen_urun != "--- Cari Kart Seç ---":
-            secilen_kod = secilen_urun.split(" - ")
+            secilen_kod = secilen_urun.split(" - ")[0]
             if st.button("🔍 CARİ KART PENCERESİNİ AÇ", use_container_width=True, type="primary"):
                 pencere_cari_kart(secilen_kod)
 
     st.write("")
+    st.dataframe(df_ana, use_container_width=True, hide_index=True)
