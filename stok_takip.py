@@ -222,7 +222,9 @@ def pencere_stok_cikis():
 
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
-df_stok = stok_durumu_getir()
+
+# Veriyi bir kez çekiyoruz
+df_orjinal = stok_durumu_getir()
 
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
@@ -232,12 +234,13 @@ with st.sidebar:
     
     st.write("---")
     st.header("📊 Filtreleme Seçenekleri")
-    kat_listesi = ["Tümü"] + list(df_stok["Kategori"].unique())
-    secilen_kat = st.selectbox("Kategori Filtresi", kat_listesi)
-    durum_listesi = ["Tümü", "⚠️ Kritik", "✅ Yeterli"]
-    secilen_durum = st.selectbox("Stok Durum Filtresi", durum_listesi)
+    
+    # Filtrelerin boş kalıp çökmemesi için önlem
+    kategoriler = ["Tümü"] + list(df_orjinal["Kategori"].unique()) if not df_orjinal.empty else ["Tümü"]
+    secilen_kat = st.selectbox("Kategori Filtresi", kategoriler)
+    secilen_durum = st.selectbox("Stok Durum Filtresi", ["Tümü", "⚠️ Kritik", "✅ Yeterli"])
 
-# Buton Tetiklemeleri
+# Pencere Tetiklemeleri
 if btn_urun:
     pencere_urun_ekle()
 if btn_giris:
@@ -245,11 +248,6 @@ if btn_giris:
 if btn_cikis:
     pencere_stok_cikis()
 
-# Filtreleri Uygula
-if secilen_kat != "Tümü":
-    df_stok = df_stok[df_stok["Kategori"] == secilen_kat]
-if secilen_durum != "Tümü":
-    df_stok = df_stok[df_stok["Durum"] == secilen_durum]
-
-st.subheader("📊 Güncel Stok Kartları Listesi")
-
+# Filtreleri tabloya güvenle uygula
+df_gosterilecek = df_orjinal.copy()
+if secilen_kat != "Tümü" and not df_gosterilecek.empty:
