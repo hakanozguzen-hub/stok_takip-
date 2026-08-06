@@ -108,8 +108,8 @@ def pencere_cari_kart(urun_kodu):
     
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
     yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
-    yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
-                            index=["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
+    yeni_kat = st.selectbox("Kategori Değiştir", ["Genel", "Temizlik", "Gıda", "Tekstil", "Hırdavat", "Diğer"], 
+                            index=["Genel", "Temizlik", "Gıda", "Tekstil", "Hırdavat", "Diğer"].index(urun[2]) if urun[2] in ["Genel", "Temizlikk", "Gıda", "Tekstil", "Hırdavat", "Diğer"] else 0)
     yeni_kritik = st.number_input("Kritik Stok Sınırı", value=int(urun[3] if urun[3] is not None else 5), min_value=0)
     
     col_btn1, col_btn2 = st.columns(2)
@@ -136,7 +136,7 @@ def pencere_cari_kart(urun_kodu):
 def pencere_urun_ekle():
     kod = st.text_input("Ürün Kodu")
     ad = st.text_input("Ürün Adı")
-    kat = st.selectbox("Kategori", ["Genel", "Elektronik", "Gıda", "Tekstil", "Hırdavat", "Diğer"])
+    kat = st.selectbox("Kategori", ["Genel", "Temizlik", "Gıda", "Tekstil", "Hırdavat", "Diğer"])
     kritik = st.number_input("Kritik Limit", min_value=0, value=5)
     
     if st.button("Kaydet", use_container_width=True, type="primary"):
