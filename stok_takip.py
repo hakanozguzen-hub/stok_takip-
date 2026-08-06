@@ -169,7 +169,7 @@ def pencere_urun_ekle():
 @st.dialog("📥 Stok Girişi (Mal Alımı)")
 def pencere_stok_giris():
     df = stok_durumu_getir()
-    if df.empty:
+    if df.empty or df["Ürün Kodu"].isna().all():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
@@ -192,7 +192,7 @@ def pencere_stok_giris():
 @st.dialog("📤 Stok Çıkışı (Teslimat / Satış)")
 def pencere_stok_cikis():
     df = stok_durumu_getir()
-    if df.empty:
+    if df.empty or df["Ürün Kodu"].isna().all():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
@@ -223,8 +223,8 @@ def pencere_stok_cikis():
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
 
-# Veriyi tabandan çekiyoruz
-df_gosterilecek = stok_durumu_getir()
+# Ham veriyi tabandan çekiyoruz
+df_orjinal = stok_durumu_getir()
 
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
@@ -235,16 +235,15 @@ with st.sidebar:
     st.write("---")
     st.header("📊 Filtreleme Seçenekleri")
     
-    # Hata önleyici dinamik filtre listeleri
-    if not df_gosterilecek.empty:
-        kategoriler = ["Tümü"] + list(df_gosterilecek["Kategori"].unique())
+    if not df_orjinal.empty and len(df_orjinal["Ürün Kodu"].dropna()) > 0:
+        kategoriler = ["Tümü"] + list(df_orjinal["Kategori"].unique())
     else:
         kategoriler = ["Tümü"]
         
     secilen_kat = st.selectbox("Kategori Filtresi", kategoriler)
     secilen_durum = st.selectbox("Stok Durum Filtresi", ["Tümü", "⚠️ Kritik", "✅ Yeterli"])
 
-# Pencere Açma İşlemleri (Boşluk kuralından tamamen bağımsızlaştırıldı)
+# Pencere Tetikleyicileri
 if btn_urun:
     pencere_urun_ekle()
 if btn_giris:
@@ -252,4 +251,4 @@ if btn_giris:
 if btn_cikis:
     pencere_stok_cikis()
 
-# Filtre Uygulama Adımları
+# Filtreleri Uygula
