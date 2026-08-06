@@ -202,7 +202,6 @@ def pencere_stok_giris():
     
     # 📆 MANUEL TARİH GİRİŞ ALANI
     secilen_tarih = st.date_input("Alım Tarihi Seçin", value=datetime.now().date())
-    
     aciklama = st.text_input("Açıklama (Fatura No vb.)")
     
     if st.button("Girişi Onayla", use_container_width=True, type="primary"):
@@ -232,7 +231,6 @@ def pencere_stok_cikis():
     
     # 📆 MANUEL TARİH GİRİŞ ALANI
     secilen_tarih = st.date_input("Teslim Tarihi Seçin", value=datetime.now().date())
-    
     aciklama = st.text_input("Açıklama")
     
     if mevcut <= 0:
@@ -252,9 +250,10 @@ def pencere_stok_cikis():
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
 
+# Filtreleri hazırlamak için başlangıç veri setini çekiyoruz
 df_stok = stok_durumu_getir()
 
-# Sol Panel (Sidebar) Butonları
+# --- 🔍 FİLTRELEME SEÇENEKLERİ (SIDEBAR ÜST KISIM) ---
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
     if st.button("🆕 Yeni Ürün Tanımla", use_container_width=True):
@@ -263,4 +262,3 @@ with st.sidebar:
     if st.button("📥 Depoya Stok Girişi Yap", use_container_width=True):
         pencere_stok_giris()
         
-    if st.button("📤 Depodan Stok Çıkışı Yap", use_container_width=True):
