@@ -14,17 +14,22 @@ st.set_page_config(
 # --- 🎨 GÖRSEL TASARIM VE RENK AYARLARI (CSS) ---
 GÖRSEL_AYARLAR = """
 <style>
-    /* 📌 1. UYGULAMANIN GENEL ARKA PLAN RENGİ */
+    /* 📌 UYGULAMANIN GENEL ARKA PLAN RENGİ */
     .stApp {
         background-color: #f8fafc !important; /* Temiz modern açık gri-beyaz */
     }
 
-    /* 📌 2. SOL PANELİN (SIDEBAR) ARKA PLAN RENGİ */
+    /* 📌 ORTADAKİ TÜM YAZILARIN RENGİ (Görünmeme sorununu çözer) */
+    .stApp [data-testid="stHeader"], .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp span, .stApp label {
+        color: #0f172a !important; /* Yazıları tamamen okunur koyu lacivert yapar */
+    }
+
+    /* 📌 SOL PANELİN (SIDEBAR) ARKA PLAN RENGİ */
     section[data-testid="stSidebar"] {
         background-color: #0f172a !important; /* Şık koyu lacivert/karbon */
     }
     
-    /* Sol paneldeki başlık ve yazıların renkleri (Beyaz) */
+    /* Sol paneldeki başlık ve yazıların renkleri (Beyaz kalmalı) */
     section[data-testid="stSidebar"] h1, 
     section[data-testid="stSidebar"] h2, 
     section[data-testid="stSidebar"] p, 
@@ -33,25 +38,22 @@ GÖRSEL_AYARLAR = """
         color: #ffffff !important;
     }
 
-    /* 📌 3. ANA İŞLEM BUTONLARININ RENGİ (Mavi Butonlar) */
-    div[data-testid="stBaseButton-primary"] {
+    /* 📌 ANA İŞLEM BUTONLARININ RENGİ (Mavi Butonlar) */
+    div[data-testid="stBaseButton-primary"] button {
         background-color: #0284c7 !important; /* Canlı kurumsal mavi */
         color: #ffffff !important; /* Yazı rengi beyaz */
         border-radius: 6px !important;
         border: none !important;
     }
-    div[data-testid="stBaseButton-primary"]:hover {
-        background-color: #0369a1 !important; /* Üzerine gelince koyulaşan mavi */
-    }
 
-    /* 📌 4. STANDART BUTONLARIN RENGİ */
-    div[data-testid="stBaseButton-secondary"] {
+    /* 📌 STANDART BUTONLARIN RENGİ */
+    div[data-testid="stBaseButton-secondary"] button {
         background-color: #ffffff !important;
         color: #0f172a !important;
         border: 1px solid #cbd5e1 !important;
     }
 
-    /* 📌 5. CARİ PENCERE BAŞLIĞI */
+    /* 📌 CARİ PENCERE BAŞLIĞI */
     .cari-baslik {
         color: #0284c7; font-size: 24px; font-weight: bold;
         border-bottom: 3px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px;
@@ -195,7 +197,7 @@ def pencere_stok_giris():
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -209,7 +211,7 @@ def pencere_stok_giris():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
-        """, (str(kod[0]), int(miktar), tarih_str, aciklama, cari_unvan))
+        """, (str(kod), int(miktar), tarih_str, aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -220,9 +222,9 @@ def pencere_stok_cikis():
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")
+    kod = secilen.split(" - ")[0]
     
-    mevcut_row = df[df["Ürün Kodu"] == str(kod[0])]
+    mevcut_row = df[df["Ürün Kodu"] == str(kod)]
     mevcut = int(mevcut_row["Mevcut Stok"].iloc[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
@@ -242,7 +244,7 @@ def pencere_stok_cikis():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
-        """, (str(kod[0]), int(miktar), tarih_str, aciklama, cari_unvan))
+        """, (str(kod), int(miktar), tarih_str, aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -257,8 +259,3 @@ df_stok = stok_durumu_getir()
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
     if st.button("🆕 Yeni Ürün Tanımla", use_container_width=True):
-        pencere_urun_ekle()
-        
-    if st.button("📥 Depoya Stok Girişi Yap", use_container_width=True):
-        pencere_stok_giris()
-        
