@@ -199,7 +199,7 @@ def pencere_stok_cikis():
     kod = secilen.split(" - ")[0]
     
     mevcut_row = df[df["Ürün Kodu"] == str(kod)]
-    mevcut = int(mevcut_row["Mevcut Stok"].iloc[0]) if not mevcut_row.empty else 0
+    mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
     cari_unvan = st.text_input("Teslim Edilen Kişi / Müşteri (Kime Verildi?)")
@@ -223,8 +223,8 @@ def pencere_stok_cikis():
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
 
-# Veriyi bir kez çekiyoruz
-df_orjinal = stok_durumu_getir()
+# Veriyi tabandan çekiyoruz
+df_gosterilecek = stok_durumu_getir()
 
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
@@ -235,12 +235,16 @@ with st.sidebar:
     st.write("---")
     st.header("📊 Filtreleme Seçenekleri")
     
-    # Filtrelerin boş kalıp çökmemesi için önlem
-    kategoriler = ["Tümü"] + list(df_orjinal["Kategori"].unique()) if not df_orjinal.empty else ["Tümü"]
+    # Hata önleyici dinamik filtre listeleri
+    if not df_gosterilecek.empty:
+        kategoriler = ["Tümü"] + list(df_gosterilecek["Kategori"].unique())
+    else:
+        kategoriler = ["Tümü"]
+        
     secilen_kat = st.selectbox("Kategori Filtresi", kategoriler)
     secilen_durum = st.selectbox("Stok Durum Filtresi", ["Tümü", "⚠️ Kritik", "✅ Yeterli"])
 
-# Pencere Tetiklemeleri
+# Pencere Açma İşlemleri (Boşluk kuralından tamamen bağımsızlaştırıldı)
 if btn_urun:
     pencere_urun_ekle()
 if btn_giris:
@@ -248,6 +252,4 @@ if btn_giris:
 if btn_cikis:
     pencere_stok_cikis()
 
-# Filtreleri tabloya güvenle uygula
-df_gosterilecek = df_orjinal.copy()
-if secilen_kat != "Tümü" and not df_gosterilecek.empty:
+# Filtre Uygulama Adımları
