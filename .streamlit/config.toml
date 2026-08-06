@@ -3,4 +3,4 @@ primaryColor = "#0284c7"          # Butonlar canlı mavi olur
 backgroundColor = "#bebebe"       # Ana arka plan tertemiz beyaz olur
 secondaryBackgroundColor = "#f1f5f9" # Sol menü paneli şık bir açık gri olur
 textColor = "#0f172a"            # Yazılar okunaklı koyu lacivert olur
-font = "sans serif"
+font = "sans serif""italic"
