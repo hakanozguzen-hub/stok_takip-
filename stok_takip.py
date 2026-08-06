@@ -53,8 +53,8 @@ GÖRSEL_AYARLAR = """
 """
 st.markdown(GÖRSEL_AYARLAR, unsafe_allow_html=True)
 
-# --- VERİTABANI BAĞLANTISI ---
-conn = sqlite3.connect("stok_takip_modern.db", check_same_thread=False)
+# --- 🔄 VERİTABANI BAĞLANTISI (YENİ SIFIR VERİTABANI) ---
+conn = sqlite3.connect("stok_takip_v2.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -185,7 +185,7 @@ def pencere_stok_giris():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
-        """, (kod_ham, int(miktar), tarih_str, aciklama, cari_unvan))
+        """, (str(kod_ham), int(miktar), tarih_str, aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
@@ -198,7 +198,7 @@ def pencere_stok_cikis():
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"].astype(str) + " - " + df["Ürün Adı"].astype(str))
     kod_ham = str(secilen).split(" - ")[0]
     
-    mevcut_row = df[df["Ürün Kodu"] == kod_ham]
+    mevcut_row = df[df["Ürün Kodu"] == str(kod_ham)]
     mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
@@ -216,17 +216,16 @@ def pencere_stok_cikis():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
-        """, (kod_ham, int(miktar), tarih_str, aciklama, cari_unvan))
+        """, (str(kod_ham), int(miktar), tarih_str, aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
 
-# Verileri çekiyoruz
+# Temiz ham veriyi tabandan çekiyoruz
 df_gosterilecek = stok_durumu_getir()
 
-# Sol Panel Elemanları
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
     btn_urun = st.button("🆕 Yeni Ürün Tanımla", use_container_width=True)
@@ -239,11 +238,9 @@ with st.sidebar:
     secilen_kat = st.selectbox("Kategori Filtresi", kategoriler)
     secilen_durum = st.selectbox("Stok Durum Filtresi", ["Tümü", "⚠️ Kritik", "✅ Yeterli"])
 
-# Pencere Tetikleyicileri (En güvenli sırada çalışır)
+# Pencere Açma Buton Kontrolleri
 if btn_urun:
     pencere_urun_ekle()
 if btn_giris:
     pencere_stok_giris()
 if btn_cikis:
-    pencere_stok_cikis()
-
