@@ -14,47 +14,20 @@ st.set_page_config(
 # --- 🎨 GÖRSEL TASARIM VE RENK AYARLARI (CSS) ---
 GÖRSEL_AYARLAR = """
 <style>
-    .stApp {
-        background-color: #f8fafc !important;
-    }
-    .stApp [data-testid="stHeader"], .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp span, .stApp label {
-        color: #0f172a !important;
-    }
-    section[data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-    }
-    section[data-testid="stSidebar"] h1, 
-    section[data-testid="stSidebar"] h2, 
-    section[data-testid="stSidebar"] p, 
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] span {
-        color: #ffffff !important;
-    }
-    div[data-testid="stBaseButton-primary"] button {
-        background-color: #0284c7 !important;
-        color: #ffffff !important;
-        border-radius: 6px !important;
-        border: none !important;
-    }
-    div[data-testid="stBaseButton-secondary"] button {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-    }
-    .cari-baslik {
-        color: #0284c7; font-size: 24px; font-weight: bold;
-        border-bottom: 3px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px;
-    }
-    div[data-testid="stDialog"] > div {
-        max-width: 1400px !important;
-        width: 85vw !important;
-    }
+    .stApp { background-color: #f8fafc !important; }
+    .stApp [data-testid="stHeader"], .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp span, .stApp label { color: #0f172a !important; }
+    section[data-testid="stSidebar"] { background-color: #0f172a !important; }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] span { color: #ffffff !important; }
+    div[data-testid="stBaseButton-primary"] button { background-color: #0284c7 !important; color: #ffffff !important; border-radius: 6px !important; border: none !important; }
+    div[data-testid="stBaseButton-secondary"] button { background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
+    .cari-baslik { color: #0284c7; font-size: 24px; font-weight: bold; border-bottom: 3px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px; }
+    div[data-testid="stDialog"] > div { max-width: 1400px !important; width: 85vw !important; }
 </style>
 """
 st.markdown(GÖRSEL_AYARLAR, unsafe_allow_html=True)
 
-# --- VERİTABANI BAĞLANTISI (TEMİZ SIFIR SÜRÜM) ---
-conn = sqlite3.connect("stok_takip_final.db", check_same_thread=False)
+# --- VERİTABANI BAĞLANTISI (YENİ TERTEMİZ SÜRÜM) ---
+conn = sqlite3.connect("stok_takip_v3.db", check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -107,18 +80,11 @@ def pencere_cari_kart(urun_kodu):
         return
     st.markdown(f"<div class='cari-baslik'>{urun[1]} ({urun[0]}) Cari Kartı</div>", unsafe_allow_html=True)
     st.subheader("📜 Detaylı Cari Hareket Geçmişi (Ekstre)")
-    cursor.execute("""
-        SELECT tarih, islem_turu, miktar, cari_unvan, aciklama 
-        FROM stok_hareketleri 
-        WHERE urun_kodu=? 
-        ORDER BY id DESC
-    """, (str(urun_kodu),))
+    cursor.execute("SELECT tarih, islem_turu, miktar, cari_unvan, aciklama FROM stok_hareketleri WHERE urun_kodu=? ORDER BY id DESC", (str(urun_kodu),))
     gecmis = cursor.fetchall()
     if gecmis:
         df_gecmis = pd.DataFrame(gecmis, columns=["Tarih / Saat", "İşlem Türü", "Miktar (Adet)", "Firma / Müşteri (Cari)", "Açıklama"])
         st.dataframe(df_gecmis, use_container_width=True, hide_index=True)
-    else:
-        st.info("💡 Bu ürüne ait henüz hiçbir alım veya teslimat kaydı bulunmuyor.")
     st.divider()
     st.subheader("⚙️ Kart Bilgilerini Düzenle / Değiştir")
     yeni_ad = st.text_input("Ürün Adı Güncelle", value=urun[1])
@@ -213,7 +179,6 @@ with st.sidebar:
     secilen_kat = st.selectbox("Kategori Filtresi", kategoriler)
     secilen_durum = st.selectbox("Stok Durum Filtresi", ["Tümü", "⚠️ Kritik", "✅ Yeterli"])
 
-# Tetikleyiciler
 if btn_urun:
     pencere_urun_ekle()
 if btn_giris:
@@ -221,7 +186,6 @@ if btn_giris:
 if btn_cikis:
     pencere_stok_cikis()
 
-# Filtre Uygula
 if not df_gosterilecek.empty:
     if secilen_kat != "Tümü":
         df_gosterilecek = df_gosterilecek[df_gosterilecek["Kategori"] == secilen_kat]
@@ -230,4 +194,12 @@ if not df_gosterilecek.empty:
 
 st.subheader("📊 Güncel Stok Kartları Listesi")
 
-if df_gosterilecek.empty or len(df_gosterilecek["Ürün Kodu"].dropna()) == 0:
+# BÜTÜN KAYMA İHTİMALİ OLAN IF BLOKLARI KALDIRILDI, TABLO DÜMDÜZ EKRANA BASILIYOR
+st.dataframe(df_gosterilecek, use_container_width=True, hide_index=True)
+
+st.write("---")
+st.markdown("### 🔍 Detay İnceleme ve Düzenleme")
+urun_secenekleri = df_gosterilecek["Ürün Kodu"].astype(str) + " - " + df_gosterilecek["Ürün Adı"].astype(str)
+secim_kutusu = st.selectbox("İşlem hareketlerini görmek istediğiniz ürünü seçin:", urun_secenekleri)
+
+if secim_kutusu:
