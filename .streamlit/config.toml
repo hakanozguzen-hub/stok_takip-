@@ -1,5 +1,5 @@
 [theme]
-primaryColor = "#0284c7"          # Butonlar canlı mavi olur
+primaryColor = "#ffc000"          # Butonlar canlı mavi olur
 backgroundColor = "#708090"       # Ana arka plan tertemiz beyaz olur
 secondaryBackgroundColor = "# 778899" # Sol menü paneli şık bir açık gri olur
 textColor = "#ffffff"            # Yazılar okunaklı koyu lacivert olur
