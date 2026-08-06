@@ -252,3 +252,4 @@ if secilen_durum != "Tümü":
     df_stok = df_stok[df_stok["Durum"] == secilen_durum]
 
 st.subheader("📊 Güncel Stok Kartları Listesi")
+
