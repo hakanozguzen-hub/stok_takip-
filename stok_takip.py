@@ -169,11 +169,11 @@ def pencere_urun_ekle():
 @st.dialog("📥 Stok Girişi (Mal Alımı)")
 def pencere_stok_giris():
     df = stok_durumu_getir()
-    if df.empty or df["Ürün Kodu"].isna().all():
+    if df.empty or len(df["Ürün Kodu"].dropna()) == 0:
         st.warning("Önce ürün eklemelisiniz.")
         return
     secilen = st.selectbox("Giriş Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod_ham = secilen.split(" - ")[0]  # Düzenleme: Sadece ham metin olan kodu çekiyoruz
     
     cari_unvan = st.text_input("Alınan Firma / Tedarikçi (Kimden Alındı?)")
     miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
@@ -185,20 +185,20 @@ def pencere_stok_giris():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Giriş', ?, ?, ?, ?)
-        """, (str(kod), int(miktar), tarih_str, aciklama, cari_unvan))
+        """, (str(kod_ham), int(miktar), tarih_str, aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
 @st.dialog("📤 Stok Çıkışı (Teslimat / Satış)")
 def pencere_stok_cikis():
     df = stok_durumu_getir()
-    if df.empty or df["Ürün Kodu"].isna().all():
+    if df.empty or len(df["Ürün Kodu"].dropna()) == 0:
         st.warning("Ürün bulunamadı.")
         return
     secilen = st.selectbox("Çıkış Yapılacak Ürün", df["Ürün Kodu"] + " - " + df["Ürün Adı"])
-    kod = secilen.split(" - ")[0]
+    kod_ham = secilen.split(" - ")[0]  # Düzenleme: Sadece ham metin olan kodu çekiyoruz
     
-    mevcut_row = df[df["Ürün Kodu"] == str(kod)]
+    mevcut_row = df[df["Ürün Kodu"] == str(kod_ham)]
     mevcut = int(mevcut_row["Mevcut Stok"].values[0]) if not mevcut_row.empty else 0
     st.info(f"Depoda kalan güncel miktar: {mevcut} Adet")
     
@@ -216,15 +216,15 @@ def pencere_stok_cikis():
         cursor.execute("""
             INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) 
             VALUES (?, 'Çıkış', ?, ?, ?, ?)
-        """, (str(kod), int(miktar), tarih_str, aciklama, cari_unvan))
+        """, (str(kod_ham), int(miktar), tarih_str, aciklama, cari_unvan))
         conn.commit()
         st.rerun()
 
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
 st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
 
-# Ham veriyi tabandan çekiyoruz
-df_orjinal = stok_durumu_getir()
+# Temiz ham veriyi tabandan çekiyoruz
+df_gosterilecek = stok_durumu_getir()
 
 with st.sidebar:
     st.header("⚡ Hızlı İşlemler")
@@ -235,20 +235,11 @@ with st.sidebar:
     st.write("---")
     st.header("📊 Filtreleme Seçenekleri")
     
-    if not df_orjinal.empty and len(df_orjinal["Ürün Kodu"].dropna()) > 0:
-        kategoriler = ["Tümü"] + list(df_orjinal["Kategori"].unique())
+    if not df_gosterilecek.empty and len(df_gosterilecek["Ürün Kodu"].dropna()) > 0:
+        kategoriler = ["Tümü"] + list(df_gosterilecek["Kategori"].unique())
     else:
         kategoriler = ["Tümü"]
         
     secilen_kat = st.selectbox("Kategori Filtresi", kategoriler)
     secilen_durum = st.selectbox("Stok Durum Filtresi", ["Tümü", "⚠️ Kritik", "✅ Yeterli"])
 
-# Pencere Tetikleyicileri
-if btn_urun:
-    pencere_urun_ekle()
-if btn_giris:
-    pencere_stok_giris()
-if btn_cikis:
-    pencere_stok_cikis()
-
-# Filtreleri Uygula
