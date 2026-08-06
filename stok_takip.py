@@ -203,7 +203,7 @@ def pencere_stok_cikis():
 
 
 # --- 🎛️ ANA PANEL VE SIDEBAR MENÜSÜ ---
-st.title("📦 Detaylı Cari & Stok Yönetim Paneli")
+st.title("📦 MAYRA PARK Cari & Stok Yönetim Paneli")
 
 df_stok = stok_durumu_getir()
 
