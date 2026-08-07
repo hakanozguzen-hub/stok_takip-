@@ -14,7 +14,7 @@ st.set_page_config(
 # --- 🎨 GÖRSEL TASARIM VE RENK AYARLARI (CSS) ---
 GÖRSEL_AYARLAR = """
 <style>
-    .stApp { background-color: #cdc9c9 !important; }
+    .stApp { background-color: # 5d478b !important; }
     .stApp [data-testid="stHeader"], .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp span, .stApp label { color: #0f172a !important; }
     section[data-testid="stSidebar"] { background-color: #0f172a !important; }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] span { color: #ffffff !important; }
