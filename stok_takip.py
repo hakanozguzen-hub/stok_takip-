@@ -16,7 +16,7 @@ GÖRSEL_AYARLAR = """
 <style>
     .stApp { background-color: #f8fafc !important; }
     .stApp [data-testid="stHeader"], .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp span, .stApp label { color: #0f172a !important; }
-    section[data-testid="stSidebar"] { background-color: #838b8b !important; }
+    section[data-testid="stSidebar"] { background-color: #0f172a !important; }
     section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] span { color: #ffffff !important; }
     div[data-testid="stBaseButton-primary"] button { background-color: #0284c7 !important; color: #ffffff !important; border-radius: 6px !important; border: none !important; }
     div[data-testid="stBaseButton-secondary"] button { background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
