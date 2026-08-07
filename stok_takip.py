@@ -98,7 +98,7 @@ def pencere_stok_giris():
         kod_ham = str(secilen).split(" - ")[0]
         cari_unvan = st.text_input("Alınan Firma / Tedarikçi")
         miktar = st.number_input("Giriş Miktarı (Adet)", min_value=1, value=1)
-        secilen_tarih = st.date_input("Alım Tarihi Seçin", value=datetime.now().date())
+        secilen_tarih = st.date_input("Alım Tarihi Seçin", value=datetime.now().date("%d.%m.%Y"))
         aciklama = st.text_input("Açıklama")
         if st.button("Girişi Onayla", use_container_width=True, type="primary"):
             cursor.execute("INSERT INTO stok_hareketleri (urun_kodu, islem_turu, miktar, tarih, aciklama, cari_unvan) VALUES (?, 'Giriş', ?, ?, ?, ?)", (str(kod_ham), int(miktar), secilen_tarih.strftime("%Y-%m-%d"), aciklama, cari_unvan))
