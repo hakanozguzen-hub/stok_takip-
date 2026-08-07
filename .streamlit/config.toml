@@ -2,5 +2,5 @@
 primaryColor = "#ffc000"          # Butonlar canlı mavi olur
 backgroundColor = "#778899"       # Ana arka plan tertemiz beyaz olur
 secondaryBackgroundColor = "# 778899" # Sol menü paneli şık bir açık gri olur
-textColor = "#ffffff"            # Yazılar okunaklı koyu lacivert olur
+textColor = "#8470ff"            # Yazılar okunaklı koyu lacivert olur
 font = "arial"
